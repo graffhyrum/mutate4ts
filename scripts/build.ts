@@ -5,6 +5,7 @@ const result = await Bun.build({
   outdir: "dist",
   target: "bun",
   minify: true,
+  sourcemap: "external",
   // Keep runtime deps external — npm install handles them
   external: ["typescript", "arktype"],
 });

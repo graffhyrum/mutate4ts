@@ -41,6 +41,7 @@ function visitNode(node: ts.Node, visitor: (node: ts.Node) => void): void {
   ts.forEachChild(node, (child) => visitNode(child, visitor));
 }
 
+// Type-only nodes are erased at compile time, so mutations to them have no runtime effect.
 function isTypeOnlyNode(node: ts.Node): boolean {
   return ts.isTypeNode(node) || ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node);
 }

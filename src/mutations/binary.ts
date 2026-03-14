@@ -52,6 +52,8 @@ function mutateBinary(
   return swaps.map((target) => buildBinarySite(node, sourceFile, filePath, target));
 }
 
+// String concatenation with + is not a meaningful numeric mutation — `"x" - name` is a type
+// error, not a surviving mutant. Skip + when either operand is a string or template literal.
 function isPlusOnStrings(node: ts.BinaryExpression): boolean {
   return (
     node.operatorToken.kind === ts.SyntaxKind.PlusToken &&

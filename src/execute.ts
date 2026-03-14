@@ -28,6 +28,7 @@ type ExecuteOptions = {
 async function executeMutations(opts: ExecuteOptions): Promise<readonly MutationResult[]> {
   const results: MutationResult[] = [];
   const { filePath } = opts;
+  // Restore the file if the user ctrl-c's mid-run, otherwise the mutated source stays on disk.
   const handler = () => restoreOriginal(filePath, opts.originalSource);
   process.on("SIGINT", handler);
   try {

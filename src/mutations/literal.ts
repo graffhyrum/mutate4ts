@@ -31,6 +31,8 @@ function mutateFalseLiteral(
   return [buildLiteralSite(node, sourceFile, filePath, "false", "true")];
 }
 
+// Only 0 and 1 are mutated — they are the only literals with a meaningful numeric swap that
+// doesn't change the semantic type of the expression (int stays int).
 function mutateNumericLiteral(
   node: ts.NumericLiteral,
   sourceFile: ts.SourceFile,
