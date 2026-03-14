@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { toMutationSpan } from "../ast.ts";
+import { toMutationSpan, getSpanPosition } from "../ast.ts";
 import { adaptMutator } from "./types.ts";
 import type { MutatorDef, MutationSite } from "./types.ts";
 
@@ -13,49 +13,31 @@ function mutateUnary(
   filePath: string,
 ): readonly MutationSite[] {
   if (node.operator === ts.SyntaxKind.ExclamationToken)
-    return [buildRemoveBang(node, sourceFile, filePath)];
+    return [buildUnaryRemovalSite(node, sourceFile, filePath, "!", "Remove ! prefix")];
   if (node.operator === ts.SyntaxKind.MinusToken)
-    return [buildRemoveNegation(node, sourceFile, filePath)];
+    return [buildUnaryRemovalSite(node, sourceFile, filePath, "-", "Remove unary -")];
   return [];
 }
 
-function buildRemoveBang(
+function buildUnaryRemovalSite(
   node: ts.PrefixUnaryExpression,
   sourceFile: ts.SourceFile,
   filePath: string,
+  operator: "!" | "-",
+  description: string,
 ): MutationSite {
   const span = toMutationSpan(node, sourceFile);
   const operandText = node.operand.getText(sourceFile);
-  const pos = ts.getLineAndCharacterOfPosition(sourceFile, span.start);
+  const { line, column } = getSpanPosition(sourceFile, span);
   return {
     filePath,
     span,
-    originalText: `!${operandText}`,
+    originalText: `${operator}${operandText}`,
     mutatedText: operandText,
-    category: { kind: "unary", operator: "!" },
-    description: `Remove ! prefix`,
-    line: pos.line + 1,
-    column: pos.character,
-  };
-}
-
-function buildRemoveNegation(
-  node: ts.PrefixUnaryExpression,
-  sourceFile: ts.SourceFile,
-  filePath: string,
-): MutationSite {
-  const span = toMutationSpan(node, sourceFile);
-  const operandText = node.operand.getText(sourceFile);
-  const pos = ts.getLineAndCharacterOfPosition(sourceFile, span.start);
-  return {
-    filePath,
-    span,
-    originalText: `-${operandText}`,
-    mutatedText: operandText,
-    category: { kind: "unary", operator: "-" },
-    description: `Remove unary -`,
-    line: pos.line + 1,
-    column: pos.character,
+    category: { kind: "unary", operator },
+    description,
+    line,
+    column,
   };
 }
 

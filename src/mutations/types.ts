@@ -3,7 +3,7 @@ import type { MutationSpan } from "../ast.ts";
 
 type MutationCategory =
   | { readonly kind: "binary"; readonly from: string; readonly to: string }
-  | { readonly kind: "unary"; readonly operator: string }
+  | { readonly kind: "unary"; readonly operator: "!" | "-" }
   | { readonly kind: "literal"; readonly from: string; readonly to: string }
   | { readonly kind: "null-return" };
 

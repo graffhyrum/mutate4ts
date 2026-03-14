@@ -7,8 +7,7 @@ type MutationOutcome =
   | { readonly status: "killed"; readonly exitCode: number }
   | { readonly status: "survived" }
   | { readonly status: "timeout"; readonly timeoutMs: number }
-  | { readonly status: "error"; readonly message: string }
-  | { readonly status: "uncovered" };
+  | { readonly status: "error"; readonly message: string };
 
 type MutationResult = {
   readonly site: MutationSite;

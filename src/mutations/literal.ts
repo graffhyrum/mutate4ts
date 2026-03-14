@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { toMutationSpan } from "../ast.ts";
+import { toMutationSpan, getSpanPosition } from "../ast.ts";
 import { adaptMutator } from "./types.ts";
 import type { MutatorDef, MutationSite } from "./types.ts";
 
@@ -49,7 +49,7 @@ function buildLiteralSite(
   to: string,
 ): MutationSite {
   const span = toMutationSpan(node, sourceFile);
-  const pos = ts.getLineAndCharacterOfPosition(sourceFile, span.start);
+  const { line, column } = getSpanPosition(sourceFile, span);
   return {
     filePath,
     span,
@@ -57,8 +57,8 @@ function buildLiteralSite(
     mutatedText: to,
     category: { kind: "literal", from, to },
     description: `Replace ${from} with ${to}`,
-    line: pos.line + 1,
-    column: pos.character,
+    line,
+    column,
   };
 }
 

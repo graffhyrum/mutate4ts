@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { toMutationSpan, extractOriginalText } from "../ast.ts";
+import { toMutationSpan, extractOriginalText, getSpanPosition } from "../ast.ts";
 import { adaptMutator } from "./types.ts";
 import type { MutatorDef, MutationSite } from "./types.ts";
 
@@ -77,7 +77,7 @@ function buildBinarySite(
   const from = extractOriginalText(sourceFile, span);
   const to = operatorText.get(targetKind);
   if (!to) throw new Error(`No operator text for ${targetKind}`);
-  const pos = ts.getLineAndCharacterOfPosition(sourceFile, span.start);
+  const { line, column } = getSpanPosition(sourceFile, span);
   return {
     filePath,
     span,
@@ -85,8 +85,8 @@ function buildBinarySite(
     mutatedText: to,
     category: { kind: "binary", from, to },
     description: `Replace ${from} with ${to}`,
-    line: pos.line + 1,
-    column: pos.character,
+    line,
+    column,
   };
 }
 

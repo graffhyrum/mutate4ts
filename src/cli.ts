@@ -4,9 +4,9 @@ const CliOptionsSchema = type({
   sourceFile: "string",
   "scan?": "boolean",
   "testCommand?": "string",
-  "lines?": "number[]",
+  "lines?": "number.integer[]",
   "verbose?": "boolean",
-  "timeoutFactor?": "number",
+  "timeoutFactor?": "number > 0",
 });
 
 type CliOptions = typeof CliOptionsSchema.infer;
@@ -59,7 +59,7 @@ function processArg(args: readonly string[], i: number, result: Record<string, u
   if (arg === "--lines") return setLinesFlag(args, result, i);
   if (arg === "--timeout-factor") return setNumberFlag(args, result, "timeoutFactor", i);
   if (arg === "--help") return showHelp();
-  if (arg.startsWith("-")) exitWithUsage(`Unknown flag: ${arg}`);
+  if (arg.startsWith("-")) return exitWithUsage(`Unknown flag: ${arg}`);
   result["sourceFile"] = arg;
   return i + 1;
 }
@@ -86,7 +86,7 @@ function setNumberFlag(
   i: number,
 ): number {
   const val = Number(args[i + 1]);
-  if (Number.isNaN(val)) exitWithUsage(`Invalid number for --${key}: ${args[i + 1]}`);
+  if (Number.isNaN(val)) return exitWithUsage(`Invalid number for --${key}: ${args[i + 1]}`);
   result[key] = val;
   return i + 2;
 }
@@ -98,7 +98,7 @@ function setLinesFlag(args: readonly string[], result: Record<string, unknown>, 
 
 function parseLines(value: string): readonly number[] {
   const nums = value.split(",").map(Number);
-  if (nums.some(Number.isNaN)) exitWithUsage(`Invalid --lines value: ${value}`);
+  if (nums.some(Number.isNaN)) return exitWithUsage(`Invalid --lines value: ${value}`);
   return nums;
 }
 

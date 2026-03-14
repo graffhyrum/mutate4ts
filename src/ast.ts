@@ -9,6 +9,14 @@ function toMutationSpan(node: ts.Node, sourceFile: ts.SourceFile): MutationSpan 
   return { start: node.getStart(sourceFile), end: node.getEnd() };
 }
 
+function getSpanPosition(
+  sourceFile: ts.SourceFile,
+  span: MutationSpan,
+): { readonly line: number; readonly column: number } {
+  const pos = ts.getLineAndCharacterOfPosition(sourceFile, span.start);
+  return { line: pos.line + 1, column: pos.character };
+}
+
 function extractOriginalText(sourceFile: ts.SourceFile, span: MutationSpan): string {
   return sourceFile.text.slice(span.start, span.end);
 }
@@ -47,6 +55,7 @@ export {
   walkAst,
   toMutationSpan,
   extractOriginalText,
+  getSpanPosition,
   detectScriptKind,
   isTypeOnlyNode,
 };

@@ -1,4 +1,4 @@
-import type { MutationResult } from "./execute.ts";
+import type { MutationResult, MutationOutcome } from "./execute.ts";
 
 function formatReport(results: readonly MutationResult[]): string {
   const lines = results.map(formatResult);
@@ -15,18 +15,16 @@ function formatSummary(results: readonly MutationResult[]): string {
   const killed = count(results, "killed");
   const survived = count(results, "survived");
   const timeout = count(results, "timeout");
-  const uncovered = count(results, "uncovered");
   const errors = count(results, "error");
-  const tested = results.length - uncovered;
-  const score = tested > 0 ? ((killed / tested) * 100).toFixed(1) : "0.0";
+  const score = results.length > 0 ? ((killed / results.length) * 100).toFixed(1) : "0.0";
   return [
     `Mutation Score: ${score}%`,
-    `  ${killed} killed, ${survived} survived, ${timeout} timed out, ${uncovered} uncovered, ${errors} errors`,
+    `  ${killed} killed, ${survived} survived, ${timeout} timed out, ${errors} errors`,
     `  ${results.length} total mutations`,
   ].join("\n");
 }
 
-function count(results: readonly MutationResult[], status: string): number {
+function count(results: readonly MutationResult[], status: MutationOutcome["status"]): number {
   return results.filter((r) => r.outcome.status === status).length;
 }
 

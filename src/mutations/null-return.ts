@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { toMutationSpan, extractOriginalText } from "../ast.ts";
+import { toMutationSpan, extractOriginalText, getSpanPosition } from "../ast.ts";
 import { adaptMutator } from "./types.ts";
 import type { MutatorDef, MutationSite } from "./types.ts";
 
@@ -52,7 +52,7 @@ function buildNullSite(
 ): MutationSite {
   const span = toMutationSpan(expression, sourceFile);
   const original = extractOriginalText(sourceFile, span);
-  const pos = ts.getLineAndCharacterOfPosition(sourceFile, span.start);
+  const { line, column } = getSpanPosition(sourceFile, span);
   return {
     filePath,
     span,
@@ -60,8 +60,8 @@ function buildNullSite(
     mutatedText: "null",
     category: { kind: "null-return" },
     description,
-    line: pos.line + 1,
-    column: pos.character,
+    line,
+    column,
   };
 }
 
