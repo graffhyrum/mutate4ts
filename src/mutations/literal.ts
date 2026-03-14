@@ -1,6 +1,7 @@
 import ts from "typescript";
 import { toMutationSpan } from "../ast.ts";
-import type { MutatorDef, MutationSite } from "./registry.ts";
+import { adaptMutator } from "./types.ts";
+import type { MutatorDef, MutationSite } from "./types.ts";
 
 function isTrueKeyword(node: ts.Node): node is ts.Node {
   return node.kind === ts.SyntaxKind.TrueKeyword;
@@ -62,16 +63,9 @@ function buildLiteralSite(
 }
 
 const literalMutators: readonly MutatorDef<ts.Node>[] = [
-  { guard: isTrueKeyword, mutate: mutateTrueLiteral },
-  { guard: isFalseKeyword, mutate: mutateFalseLiteral },
-  {
-    guard: isNumericLiteral as (node: ts.Node) => node is ts.Node,
-    mutate: mutateNumericLiteral as (
-      node: ts.Node,
-      sourceFile: ts.SourceFile,
-      filePath: string,
-    ) => readonly MutationSite[],
-  },
+  adaptMutator(isTrueKeyword, mutateTrueLiteral),
+  adaptMutator(isFalseKeyword, mutateFalseLiteral),
+  adaptMutator(isNumericLiteral, mutateNumericLiteral),
 ];
 
 export { literalMutators };

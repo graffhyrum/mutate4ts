@@ -1,6 +1,7 @@
 import ts from "typescript";
 import { toMutationSpan, extractOriginalText } from "../ast.ts";
-import type { MutatorDef, MutationSite } from "./registry.ts";
+import { adaptMutator } from "./types.ts";
+import type { MutatorDef, MutationSite } from "./types.ts";
 
 function isReturnStatement(node: ts.Node): node is ts.ReturnStatement {
   return ts.isReturnStatement(node);
@@ -68,11 +69,10 @@ function isAlreadyNull(node: ts.Expression): boolean {
   return node.kind === ts.SyntaxKind.NullKeyword;
 }
 
-// Guards narrow ts.Node to the specific subtype before mutate is called — cast is sound.
-const nullReturnMutators = [
-  { guard: isReturnStatement, mutate: mutateReturn },
-  { guard: isVariableDeclaration, mutate: mutateVariableDeclaration },
-  { guard: isAssignmentExpression, mutate: mutateAssignment },
-] as unknown as readonly MutatorDef<ts.Node>[];
+const nullReturnMutators: readonly MutatorDef<ts.Node>[] = [
+  adaptMutator(isReturnStatement, mutateReturn),
+  adaptMutator(isVariableDeclaration, mutateVariableDeclaration),
+  adaptMutator(isAssignmentExpression, mutateAssignment),
+];
 
 export { nullReturnMutators };

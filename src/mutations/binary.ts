@@ -1,6 +1,7 @@
 import ts from "typescript";
 import { toMutationSpan, extractOriginalText } from "../ast.ts";
-import type { MutatorDef, MutationSite } from "./registry.ts";
+import { adaptMutator } from "./types.ts";
+import type { MutatorDef, MutationSite } from "./types.ts";
 
 const binarySwaps: ReadonlyMap<ts.SyntaxKind, readonly ts.SyntaxKind[]> = new Map([
   [ts.SyntaxKind.PlusToken, [ts.SyntaxKind.MinusToken]],
@@ -89,8 +90,8 @@ function buildBinarySite(
   };
 }
 
-const binaryMutators: readonly MutatorDef<ts.BinaryExpression>[] = [
-  { guard: isBinaryExpression, mutate: mutateBinary },
+const binaryMutators: readonly MutatorDef<ts.Node>[] = [
+  adaptMutator(isBinaryExpression, mutateBinary),
 ];
 
 export { binaryMutators };

@@ -1,6 +1,7 @@
 import ts from "typescript";
 import { toMutationSpan } from "../ast.ts";
-import type { MutatorDef, MutationSite } from "./registry.ts";
+import { adaptMutator } from "./types.ts";
+import type { MutatorDef, MutationSite } from "./types.ts";
 
 function isPrefixUnary(node: ts.Node): node is ts.PrefixUnaryExpression {
   return ts.isPrefixUnaryExpression(node);
@@ -58,8 +59,6 @@ function buildRemoveNegation(
   };
 }
 
-const unaryMutators: readonly MutatorDef<ts.PrefixUnaryExpression>[] = [
-  { guard: isPrefixUnary, mutate: mutateUnary },
-];
+const unaryMutators: readonly MutatorDef<ts.Node>[] = [adaptMutator(isPrefixUnary, mutateUnary)];
 
 export { unaryMutators };
