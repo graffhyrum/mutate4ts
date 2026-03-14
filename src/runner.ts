@@ -5,9 +5,8 @@ type RunResult = {
   readonly stderr: string;
 };
 
-function runTestCommand(command: string, timeoutMs: number): RunResult {
-  const parts = command.split(" ");
-  const result = Bun.spawnSync(parts, { timeout: timeoutMs });
+function runTestCommand(command: readonly string[], timeoutMs: number): RunResult {
+  const result = Bun.spawnSync([...command], { timeout: timeoutMs });
   return {
     exitCode: result.exitCode,
     timedOut: result.exitedDueToTimeout ?? false,

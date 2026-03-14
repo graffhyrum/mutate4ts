@@ -35,12 +35,14 @@ async function runMutationTesting(
 ): Promise<void> {
   if (sites.length === 0) return console.log("No mutation sites found.");
   const original = await readFile(opts.sourceFile);
-  const baseline = runBaseline(opts.testCommand);
+  const command = opts.testCommand.split(" ");
+  const baseline = runBaseline(command);
   const timeoutMs = Math.max(baseline.durationMs * opts.timeoutFactor, 5000);
   const results = await executeMutations({
     sites,
+    filePath: opts.sourceFile,
     originalSource: original,
-    testCommand: opts.testCommand,
+    testCommand: command,
     timeoutMs,
     onProgress: opts.verbose ? verboseProgress : defaultProgress,
   });

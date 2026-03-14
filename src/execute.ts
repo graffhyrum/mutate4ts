@@ -19,15 +19,16 @@ type MutationResult = {
 
 type ExecuteOptions = {
   readonly sites: readonly MutationSite[];
+  readonly filePath: string;
   readonly originalSource: string;
-  readonly testCommand: string;
+  readonly testCommand: readonly string[];
   readonly timeoutMs: number;
   readonly onProgress: (current: number, total: number, result: MutationResult) => void;
 };
 
 async function executeMutations(opts: ExecuteOptions): Promise<readonly MutationResult[]> {
   const results: MutationResult[] = [];
-  const filePath = opts.sites[0].filePath;
+  const { filePath } = opts;
   const handler = () => restoreOriginal(filePath, opts.originalSource);
   process.on("SIGINT", handler);
   try {
@@ -60,7 +61,7 @@ async function runSingleMutation(
 }
 
 function classifyRun(
-  testCommand: string,
+  testCommand: readonly string[],
   timeoutMs: number,
 ): { outcome: MutationOutcome; testOutput: string } {
   const run = runTestCommand(testCommand, timeoutMs);
