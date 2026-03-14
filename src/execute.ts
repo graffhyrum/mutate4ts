@@ -14,6 +14,7 @@ type MutationResult = {
   readonly site: MutationSite;
   readonly outcome: MutationOutcome;
   readonly durationMs: number;
+  readonly testOutput: string;
 };
 
 type ExecuteOptions = {
@@ -51,18 +52,23 @@ async function runSingleMutation(
   await writeTemporaryMutation(filePath, mutated);
   const start = performance.now();
   try {
-    const outcome = classifyRun(opts.testCommand, opts.timeoutMs);
-    return { site, outcome, durationMs: performance.now() - start };
+    const { outcome, testOutput } = classifyRun(opts.testCommand, opts.timeoutMs);
+    return { site, outcome, durationMs: performance.now() - start, testOutput };
   } catch (err) {
     return buildErrorResult(site, start, err);
   }
 }
 
-function classifyRun(testCommand: string, timeoutMs: number): MutationOutcome {
+function classifyRun(
+  testCommand: string,
+  timeoutMs: number,
+): { outcome: MutationOutcome; testOutput: string } {
   const run = runTestCommand(testCommand, timeoutMs);
-  if (run.timedOut) return { status: "timeout", timeoutMs };
-  if (run.exitCode !== 0) return { status: "killed", exitCode: run.exitCode };
-  return { status: "survived" };
+  const testOutput = [run.stdout, run.stderr].filter(Boolean).join("\n").trim();
+  if (run.timedOut) return { outcome: { status: "timeout", timeoutMs }, testOutput };
+  if (run.exitCode !== 0)
+    return { outcome: { status: "killed", exitCode: run.exitCode }, testOutput };
+  return { outcome: { status: "survived" }, testOutput };
 }
 
 function buildErrorResult(site: MutationSite, start: number, err: unknown): MutationResult {
@@ -71,6 +77,7 @@ function buildErrorResult(site: MutationSite, start: number, err: unknown): Muta
     site,
     outcome: { status: "error", message },
     durationMs: performance.now() - start,
+    testOutput: "",
   };
 }
 

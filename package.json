@@ -4,9 +4,14 @@
   "private": true,
   "description": "Mutation testing for TypeScript",
   "bin": {
-    "mutate4ts": "src/index.ts"
+    "mutate4ts": "dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
+  "main": "dist/index.js",
   "scripts": {
+    "build": "bun run scripts/build.ts",
     "test": "bun test",
     "test:coverage": "AGENT=1 bun test --coverage",
     "test:watch": "bun test --watch",

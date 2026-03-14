@@ -42,7 +42,7 @@ async function runMutationTesting(
     originalSource: original,
     testCommand: opts.testCommand,
     timeoutMs,
-    onProgress: defaultProgress,
+    onProgress: opts.verbose ? verboseProgress : defaultProgress,
   });
   console.log(`\n${formatReport(results)}`);
   exitWithScore(results);
@@ -52,6 +52,21 @@ function defaultProgress(current: number, total: number, result: MutationResult)
   const status = result.outcome.status.toUpperCase();
   const loc = `${result.site.filePath}:${result.site.line}`;
   console.log(`[${current}/${total}] ${status} ${loc} ${result.site.description}`);
+}
+
+function verboseProgress(current: number, total: number, result: MutationResult): void {
+  defaultProgress(current, total, result);
+  console.log(`  - ${result.site.originalText}`);
+  console.log(`  + ${result.site.mutatedText}`);
+  if (result.testOutput) console.log(indent(result.testOutput));
+  console.log();
+}
+
+function indent(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => `    ${line}`)
+    .join("\n");
 }
 
 function exitWithScore(results: readonly MutationResult[]): void {
