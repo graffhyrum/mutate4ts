@@ -1,5 +1,7 @@
 /tmp
 /out-tsc
+.DS_Store
+.idea/
 
 /node_modules
 npm-debug.log*
@@ -10,3 +12,9 @@ yarn-error.log*
 dist/
 
 .vscode/*
+/.claude/
+
+# Dolt database files (added by bd init)
+.beads/
+.dolt/
+*.db

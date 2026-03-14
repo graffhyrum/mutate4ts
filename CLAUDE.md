@@ -34,3 +34,16 @@ Bun is the runtime — not Node. Use `Bun.file`, `Bun.$`, `bun:sqlite`, etc. ins
 ## Architecture
 
 Early-stage project. Source lives in `src/`, compiled output in `dist/`. The `vet` script is the canonical pre-commit quality gate.
+
+## Toolkit
+
+| Tool | Purpose                      | Key constraint                                                                     |
+| ---- | ---------------------------- | ---------------------------------------------------------------------------------- |
+| bd   | Issue tracker + triage       | `bd prime` at session start; `git push` at session end (Dolt auto-commits locally) |
+| ms   | Skill discovery              | `ms suggest --machine --cwd .` at session start                                    |
+| cass | Session search (episodic)    | `cass search "<q>" --json --limit 5`                                               |
+| s2p  | Source→prompt bundler        | TUI only; do not run headless                                                      |
+| toon | Token codec (40-60% savings) | Pipe: `--format toon \| toon -d`                                                   |
+| ubs  | Security scanner             | `ubs --diff .` before commits                                                      |
+
+All tools support `--help`.
