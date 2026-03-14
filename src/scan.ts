@@ -1,18 +1,27 @@
+import { Data, Effect } from "effect";
 import { parseSourceFile } from "./ast.ts";
 import { findAllMutations } from "./mutations/registry.ts";
 import type { MutationSite } from "./mutations/registry.ts";
 
-async function scanFile(
+class ScanError extends Data.TaggedError("ScanError")<{ path: string; cause: unknown }> {}
+
+function scanFile(
   filePath: string,
   lines?: readonly number[],
-): Promise<readonly MutationSite[]> {
-  const text = await readFile(filePath);
-  const sites = findAllMutations(parseSourceFile(text, filePath), filePath);
-  return lines ? filterByLines(sites, lines) : sites;
+): Effect.Effect<readonly MutationSite[], ScanError> {
+  return readFile(filePath).pipe(
+    Effect.map((text) => {
+      const sites = findAllMutations(parseSourceFile(text, filePath), filePath);
+      return lines ? filterByLines(sites, lines) : sites;
+    }),
+  );
 }
 
-async function readFile(filePath: string): Promise<string> {
-  return Bun.file(filePath).text();
+function readFile(filePath: string): Effect.Effect<string, ScanError> {
+  return Effect.tryPromise({
+    try: () => Bun.file(filePath).text(),
+    catch: (cause) => new ScanError({ path: filePath, cause }),
+  });
 }
 
 function filterByLines(
@@ -23,4 +32,4 @@ function filterByLines(
   return sites.filter((s) => lineSet.has(s.line));
 }
 
-export { scanFile, readFile };
+export { scanFile, readFile, ScanError };

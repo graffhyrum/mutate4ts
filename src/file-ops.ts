@@ -1,9 +1,25 @@
-function writeTemporaryMutation(path: string, content: string): Promise<void> {
-  return Bun.write(path, content).then(() => undefined);
+import { Data, Effect } from "effect";
+
+class FileError extends Data.TaggedError("FileError")<{ path: string; cause: unknown }> {
+  get message(): string {
+    const reason = this.cause instanceof Error ? this.cause.message : String(this.cause);
+    return `${this.path}: ${reason}`;
+  }
 }
 
-function restoreOriginal(path: string, original: string): Promise<void> {
-  return Bun.write(path, original).then(() => undefined);
+function writeTemporaryMutation(path: string, content: string): Effect.Effect<void, FileError> {
+  return bunWrite(path, content);
 }
 
-export { writeTemporaryMutation, restoreOriginal };
+function restoreOriginal(path: string, original: string): Effect.Effect<void, FileError> {
+  return bunWrite(path, original);
+}
+
+function bunWrite(path: string, content: string): Effect.Effect<void, FileError> {
+  return Effect.tryPromise({
+    try: () => Bun.write(path, content).then(() => undefined),
+    catch: (cause) => new FileError({ path, cause }),
+  });
+}
+
+export { writeTemporaryMutation, restoreOriginal, FileError };

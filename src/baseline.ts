@@ -1,17 +1,32 @@
+import { Data, Effect } from "effect";
 import { runTestCommand } from "./runner.ts";
 
 type BaselineResult = {
   readonly durationMs: number;
 };
 
-function runBaseline(testCommand: readonly string[], timeoutMs = 120_000): BaselineResult {
+class BaselineFailedError extends Data.TaggedError("BaselineFailedError")<{
+  exitCode: number;
+}> {}
+
+class SpawnError extends Data.TaggedError("SpawnError")<{ cause: unknown }> {}
+
+function runBaseline(
+  testCommand: readonly string[],
+  timeoutMs = 120_000,
+): Effect.Effect<BaselineResult, BaselineFailedError | SpawnError> {
   const start = performance.now();
-  const result = runTestCommand(testCommand, timeoutMs);
-  const durationMs = performance.now() - start;
-  if (result.exitCode !== 0)
-    throw new Error(`Baseline tests failed with exit code ${result.exitCode}`);
-  return { durationMs };
+  return Effect.try({
+    try: () => runTestCommand(testCommand, timeoutMs),
+    catch: (cause) => new SpawnError({ cause }),
+  }).pipe(
+    Effect.flatMap((result) =>
+      result.exitCode !== 0
+        ? Effect.fail(new BaselineFailedError({ exitCode: result.exitCode }))
+        : Effect.succeed({ durationMs: performance.now() - start }),
+    ),
+  );
 }
 
-export { runBaseline };
+export { runBaseline, BaselineFailedError, SpawnError };
 export type { BaselineResult };

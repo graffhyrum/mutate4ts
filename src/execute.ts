@@ -1,6 +1,8 @@
+import { Effect } from "effect";
 import type { MutationSite } from "./mutations/registry.ts";
 import { applyMutation } from "./apply.ts";
 import { writeTemporaryMutation, restoreOriginal } from "./file-ops.ts";
+import type { FileError } from "./file-ops.ts";
 import { runTestCommand } from "./runner.ts";
 
 type MutationOutcome =
@@ -25,39 +27,47 @@ type ExecuteOptions = {
   readonly onProgress: (current: number, total: number, result: MutationResult) => void;
 };
 
-async function executeMutations(opts: ExecuteOptions): Promise<readonly MutationResult[]> {
-  const results: MutationResult[] = [];
-  const { filePath } = opts;
-  // Restore the file if the user ctrl-c's mid-run, otherwise the mutated source stays on disk.
-  const handler = () => restoreOriginal(filePath, opts.originalSource);
-  process.on("SIGINT", handler);
-  try {
-    for (let i = 0; i < opts.sites.length; i++) {
-      const result = await runSingleMutation(opts, opts.sites[i], filePath);
-      results.push(result);
-      opts.onProgress(i + 1, opts.sites.length, result);
-    }
-  } finally {
-    await restoreOriginal(filePath, opts.originalSource);
-    process.removeListener("SIGINT", handler);
-  }
-  return results;
+function executeMutations(opts: ExecuteOptions): Effect.Effect<readonly MutationResult[], never> {
+  return Effect.forEach(
+    Array.from(opts.sites.entries()),
+    ([index, site]) =>
+      runSingleMutation(opts, site).pipe(
+        Effect.tap((r) => Effect.sync(() => opts.onProgress(index + 1, opts.sites.length, r))),
+        Effect.catchAll((err) => Effect.succeed(buildErrorResult(site, err))),
+      ),
+    { concurrency: 1 },
+  );
 }
 
-async function runSingleMutation(
+function runSingleMutation(
   opts: ExecuteOptions,
   site: MutationSite,
-  filePath: string,
-): Promise<MutationResult> {
+): Effect.Effect<MutationResult, FileError> {
   const mutated = applyMutation(opts.originalSource, site.span, site.mutatedText);
-  await writeTemporaryMutation(filePath, mutated);
-  const start = performance.now();
-  try {
-    const { outcome, testOutput } = classifyRun(opts.testCommand, opts.timeoutMs);
-    return { site, outcome, durationMs: performance.now() - start, testOutput };
-  } catch (err) {
-    return buildErrorResult(site, start, err);
-  }
+  return Effect.acquireUseRelease(
+    writeTemporaryMutation(opts.filePath, mutated),
+    () => useMutation(opts, site),
+    (_res, _exit) => Effect.uninterruptible(releaseMutation(opts.filePath, opts.originalSource)),
+  );
+}
+
+function useMutation(
+  opts: ExecuteOptions,
+  site: MutationSite,
+): Effect.Effect<MutationResult, never> {
+  return Effect.sync(() => {
+    try {
+      const start = performance.now();
+      const r = classifyRun(opts.testCommand, opts.timeoutMs);
+      return { site, ...r, durationMs: performance.now() - start };
+    } catch (err) {
+      return buildErrorResult(site, err);
+    }
+  });
+}
+
+function releaseMutation(filePath: string, original: string): Effect.Effect<void, never> {
+  return restoreOriginal(filePath, original).pipe(Effect.catchAll(Effect.die));
 }
 
 function classifyRun(
@@ -72,12 +82,12 @@ function classifyRun(
   return { outcome: { status: "survived" }, testOutput };
 }
 
-function buildErrorResult(site: MutationSite, start: number, err: unknown): MutationResult {
+function buildErrorResult(site: MutationSite, err: unknown): MutationResult {
   const message = err instanceof Error ? err.message : String(err);
   return {
     site,
     outcome: { status: "error", message },
-    durationMs: performance.now() - start,
+    durationMs: 0,
     testOutput: "",
   };
 }
