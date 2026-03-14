@@ -18,7 +18,7 @@ describe("parseCliOptions", () => {
 
   test("parses --test-command", () => {
     const opts = parseCliOptions(argv("--test-command", "npm test", "src/index.ts"));
-    expect(opts.testCommand).toBe("npm test");
+    expect(opts.testCommand).toEqual(["npm", "test"]);
   });
 
   test("parses --lines into number array", () => {
@@ -39,7 +39,7 @@ describe("parseCliOptions", () => {
   test("applies defaults", () => {
     const opts = parseCliOptions(argv("src/index.ts"));
     expect(opts.scan).toBe(false);
-    expect(opts.testCommand).toBe("bun test");
+    expect(opts.testCommand).toEqual(["bun", "test"]);
     expect(opts.timeoutFactor).toBe(2);
     expect(opts.verbose).toBe(false);
   });

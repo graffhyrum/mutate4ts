@@ -14,7 +14,7 @@ type CliOptions = typeof CliOptionsSchema.infer;
 type ResolvedOptions = {
   readonly sourceFile: string;
   readonly scan: boolean;
-  readonly testCommand: string;
+  readonly testCommand: readonly string[];
   readonly lines: readonly number[] | undefined;
   readonly verbose: boolean;
   readonly timeoutFactor: number;
@@ -29,7 +29,7 @@ function resolveDefaults(opts: CliOptions): ResolvedOptions {
   return {
     sourceFile: opts.sourceFile,
     scan: opts.scan ?? false,
-    testCommand: opts.testCommand ?? "bun test",
+    testCommand: (opts.testCommand ?? "bun test").split(" "),
     lines: opts.lines,
     verbose: opts.verbose ?? false,
     timeoutFactor: opts.timeoutFactor ?? 2,

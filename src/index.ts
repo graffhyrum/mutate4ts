@@ -61,9 +61,8 @@ function runMutationTesting(
 ): Effect.Effect<void, FileError | ScanError | BaselineFailedError | SpawnError> {
   return Effect.gen(function* () {
     const original = yield* readFile(opts.sourceFile);
-    const command = opts.testCommand.split(" ");
-    const baseline = yield* runBaseline(command);
-    yield* runMutations(opts, sites, original, command, baseline.durationMs);
+    const baseline = yield* runBaseline(opts.testCommand);
+    yield* runMutations(opts, sites, original, opts.testCommand, baseline.durationMs);
   });
 }
 
@@ -71,7 +70,7 @@ function runMutations(
   opts: ResolvedOptions,
   sites: readonly MutationSite[],
   original: string,
-  command: string[],
+  command: readonly string[],
   baselineDurationMs: number,
 ): Effect.Effect<void, FileError> {
   const timeoutMs = Math.max(baselineDurationMs * opts.timeoutFactor, 5000);
