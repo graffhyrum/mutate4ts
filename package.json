@@ -41,5 +41,8 @@
     "@typescript/native-preview": {
       "optional": true
     }
+  },
+  "overrides": {
+    "tinypool": "^2.1.2"
   }
 }
