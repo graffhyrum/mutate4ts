@@ -20,8 +20,9 @@
     "fmt:check": "oxfmt --check",
     "lint": "bunx oxlint --type-aware --type-check",
     "lint:fix": "bunx oxlint --fix --type-aware --type-check",
-    "stepdown": "stepdown-rule analyze . fix",
-    "vet": "bun fmt && bun typecheck && bun lint:fix && rule-validator && bun test:coverage"
+    "rule-validator": "rule-validator",
+    "stepdown": "stepdown-rule",
+    "vet": "bun scripts/vet.ts"
   },
   "dependencies": {
     "arktype": "^2.2.0",
@@ -29,10 +30,13 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
+    "@graff/rule-validator": "github:graffhyrum/rule-validator#v1.1.3",
+    "@graffhyrum/crap4ts": "github:graffhyrum/crap4ts#v2.1.3",
     "@types/bun": "^1.3.10",
     "oxfmt": "^0.40.0",
     "oxlint": "^1.55.0",
-    "oxlint-tsgolint": "^0.16.0"
+    "oxlint-tsgolint": "^0.16.0",
+    "stepdown-rule": "github:graffhyrum/stepdown-rule#v0.4.5"
   },
   "peerDependencies": {
     "@typescript/native-preview": "^7.0.0-dev.20260313.1"
@@ -41,5 +45,8 @@
     "@typescript/native-preview": {
       "optional": true
     }
+  },
+  "overrides": {
+    "tinypool": "^2.1.2"
   }
 }

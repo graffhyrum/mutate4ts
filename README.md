@@ -78,6 +78,6 @@ bun test --watch      # watch mode
 bun run typecheck     # tsc --noEmit
 bun run lint          # oxlint type-aware
 bun run fmt           # oxfmt formatter
-bun run vet           # full gate: fmt → typecheck → lint:fix → test:coverage
+bun run vet           # full gate: fmt → typecheck → lint → rule-validator → stepdown → test:coverage (quiet on success)
 bun run build         # tsc → dist/
 ```

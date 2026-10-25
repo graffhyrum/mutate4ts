@@ -13,7 +13,7 @@ bun run lint               # oxlint type-aware
 bun run lint:fix           # oxlint with auto-fix
 bun run fmt                # oxfmt formatter
 bun run fmt:check          # check formatting without writing
-bun run vet                # full gate: fmt → typecheck → lint:fix → rule-validator → test:coverage
+bun run vet                # full gate: fmt → typecheck → lint → rule-validator → stepdown → test:coverage (quiet on success)
 bun run stepdown           # enforce stepdown rule across src/
 bun run build              # tsc → dist/
 ```

@@ -25,6 +25,12 @@ function parseCliOptions(argv: readonly string[]): ResolvedOptions {
   return validateAndResolve(raw);
 }
 
+function validateAndResolve(raw: Record<string, unknown>): ResolvedOptions {
+  const result = CliOptionsSchema(raw);
+  if (result instanceof type.errors) exitWithUsage(result.summary);
+  return resolveDefaults(result);
+}
+
 function resolveDefaults(opts: CliOptions): ResolvedOptions {
   return {
     sourceFile: opts.sourceFile,
@@ -34,12 +40,6 @@ function resolveDefaults(opts: CliOptions): ResolvedOptions {
     verbose: opts.verbose ?? false,
     timeoutFactor: opts.timeoutFactor ?? 2,
   };
-}
-
-function validateAndResolve(raw: Record<string, unknown>): ResolvedOptions {
-  const result = CliOptionsSchema(raw);
-  if (result instanceof type.errors) exitWithUsage(result.summary);
-  return resolveDefaults(result);
 }
 
 function preprocessArgv(args: readonly string[]): Record<string, unknown> {
