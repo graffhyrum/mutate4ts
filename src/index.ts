@@ -98,18 +98,18 @@ function printSite(site: MutationSite): void {
   console.log(`  ${site.filePath}:${site.line}:${site.column} ${site.description}`);
 }
 
-function defaultProgress(current: number, total: number, result: MutationResult): void {
-  const status = result.outcome.status.toUpperCase();
-  const loc = `${result.site.filePath}:${result.site.line}`;
-  console.log(`[${current}/${total}] ${status} ${loc} ${result.site.description}`);
-}
-
 function verboseProgress(current: number, total: number, result: MutationResult): void {
   defaultProgress(current, total, result);
   console.log(`  - ${result.site.originalText}`);
   console.log(`  + ${result.site.mutatedText}`);
   if (result.testOutput) console.log(indent(result.testOutput));
   console.log();
+}
+
+function defaultProgress(current: number, total: number, result: MutationResult): void {
+  const status = result.outcome.status.toUpperCase();
+  const loc = `${result.site.filePath}:${result.site.line}`;
+  console.log(`[${current}/${total}] ${status} ${loc} ${result.site.description}`);
 }
 
 function indent(text: string): string {
