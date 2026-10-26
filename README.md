@@ -8,6 +8,8 @@ Mutation testing CLI for TypeScript. Injects faults into a source file, runs you
 bun install
 ```
 
+The quality gate needs Bun 1.4.4. `bun check` typechecks the project. `bun fmt` formats it.
+
 ## Usage
 
 ```
@@ -75,9 +77,9 @@ bun src/index.ts --lines 42,43,44 src/my-module.ts
 ```bash
 bun test              # run tests
 bun test --watch      # watch mode
-bun run typecheck     # tsc --noEmit
-bun run lint          # oxlint type-aware
-bun run fmt           # oxfmt formatter
+bun run typecheck     # bun check
+bun run lint          # oxlint type-aware rules
+bun run fmt           # bun fmt
 bun run vet           # full gate: fmt → typecheck → lint → rule-validator → stepdown → test:coverage (quiet on success)
 bun run build         # tsc → dist/
 ```

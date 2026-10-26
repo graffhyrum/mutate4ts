@@ -8,11 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 bun test                   # run tests
 bun test --watch           # watch mode
 bun test --coverage        # with coverage (sets AGENT=1)
-bun run typecheck          # tsc --noEmit
-bun run lint               # oxlint type-aware
+bun run typecheck          # bun check (needs Bun 1.4.4)
+bun run lint               # oxlint type-aware rules
 bun run lint:fix           # oxlint with auto-fix
-bun run fmt                # oxfmt formatter
-bun run fmt:check          # check formatting without writing
+bun run fmt                # bun fmt
+bun run fmt:check          # bun fmt --check
 bun run vet                # full gate: fmt → typecheck → lint → rule-validator → stepdown → test:coverage (quiet on success)
 bun run stepdown           # enforce stepdown rule across src/
 bun run build              # tsc → dist/
@@ -26,8 +26,9 @@ Bun is the runtime — not Node. Use `Bun.file`, `Bun.$`, `bun:sqlite`, etc. ins
 
 ## Toolchain
 
-- **Formatter**: `oxfmt` (not prettier/biome)
-- **Linter**: `oxlint` with type-aware checks via `oxlint-tsgolint`
+- **Formatter**: `bun fmt` (Bun 1.4.4). Reads `.oxfmtrc.json`.
+- **Typecheck**: `bun check` (Bun 1.4.4). The `typescript` dependency stays for the compiler API.
+- **Linter**: `oxlint` with type-aware checks via `oxlint-tsgolint`.
 - **Validation**: `arktype` — use `type("string.json.parse").to(schema)` at system boundaries, never raw `JSON.parse`
 - **TypeScript compiler**: `@typescript/native-preview` (peer dep — the native TS compiler)
 

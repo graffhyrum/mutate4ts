@@ -22,16 +22,17 @@ await runGate(steps);
 
 async function runGate(gateSteps: readonly Step[]): Promise<void> {
   for (const step of gateSteps) {
-    await runStep(step);
+    const ok = await runStep(step);
+    if (!ok) return;
   }
-  process.exit(0);
 }
 
-async function runStep(step: Step): Promise<void> {
+async function runStep(step: Step): Promise<boolean> {
   const result = await capture(step.argv);
-  if (result.exitCode === 0) return;
+  if (result.exitCode === 0) return true;
   reportFailure(step.label, result);
-  process.exit(result.exitCode);
+  process.exitCode = result.exitCode;
+  return false;
 }
 
 async function capture(argv: readonly string[]): Promise<Capture> {
@@ -39,9 +40,11 @@ async function capture(argv: readonly string[]): Promise<Capture> {
     stdout: "pipe",
     stderr: "pipe",
   });
-  const stdout = await readStream(proc.stdout);
-  const stderr = await readStream(proc.stderr);
-  const exitCode = await proc.exited;
+  const [stdout, stderr, exitCode] = await Promise.all([
+    readStream(proc.stdout),
+    readStream(proc.stderr),
+    proc.exited,
+  ]);
   return { exitCode: normalizeExitCode(exitCode), stdout, stderr };
 }
 
