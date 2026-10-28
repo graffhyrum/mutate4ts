@@ -26,13 +26,13 @@
   },
   "dependencies": {
     "arktype": "^2.2.0",
-    "effect": "^3.19.19",
+    "effect": "^3.20.0",
     "typescript": "^5.9.3"
   },
   "devDependencies": {
     "@graff/rule-validator": "github:graffhyrum/rule-validator#v1.1.3",
     "@graffhyrum/crap4ts": "github:graffhyrum/crap4ts#v2.1.3",
-    "@types/bun": "^1.3.10",
+    "@types/bun": "1.3.10",
     "oxlint": "^1.55.0",
     "oxlint-tsgolint": "^0.16.0",
     "stepdown-rule": "github:graffhyrum/stepdown-rule#v0.4.5"
