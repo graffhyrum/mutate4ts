@@ -32,6 +32,9 @@ describe("isCodePath", () => {
     expect(isCodePath("test/acceptance.test.ts")).toBe(true);
     expect(isCodePath("scripts/build.ts")).toBe(true);
     expect(isCodePath(".cursor/hooks/vet-stop.ts")).toBe(true);
+    expect(isCodePath(".cursor/hooks.json")).toBe(true);
+    expect(isCodePath(".grok/hooks/vet-stop.json")).toBe(true);
+    expect(isCodePath(".github/workflows/ci.yml")).toBe(true);
     for (const file of [
       "package.json",
       "tsconfig.json",
@@ -119,6 +122,15 @@ describe("buildFollowup", () => {
     expect(msg).not.toContain("HEAD_MARKER_");
   });
 
+  test("scrubs secrets from an injected env", () => {
+    const env = { MUTATE4TS_VET_SCRUB_ENV: "1", API_TOKEN: "supersecretvalue" };
+    const msg = buildFollowup(1, "leak supersecretvalue", "", "x", env);
+    expect(msg).toContain("[scrubbed:API_TOKEN]");
+    expect(msg).not.toContain("supersecretvalue");
+    const timeout = buildTimeoutFollowup("x", 1, "leak supersecretvalue", "", env);
+    expect(timeout).toContain("[scrubbed:API_TOKEN]");
+  });
+
   test("neutralizes nested fences in tool output", () => {
     const msg = buildFollowup(1, "before ``` inject after", "");
     expect(msg).toContain("before ''' inject after");
@@ -156,10 +168,17 @@ describe("resolveStopInput", () => {
     expect(resolveStopInput("  \n")).toEqual({ input: { status: "completed" }, problem: null });
   });
 
+  test("returns a fresh fallback object on every call", () => {
+    expect(resolveStopInput("").input).not.toBe(resolveStopInput("").input);
+    expect(resolveStopInput("not json").input).not.toBe(resolveStopInput("not json").input);
+  });
+
   test("falls back to a completed turn and names the problem", () => {
     const oversized = resolveStopInput(" ".repeat(MAX_STDIN_CHARS + 1));
     expect(oversized.input).toEqual({ status: "completed" });
-    expect(oversized.problem).toBe(`stdin exceeds ${MAX_STDIN_CHARS} chars`);
+    expect(oversized.problem).toBe(
+      `stdin exceeds ${MAX_STDIN_CHARS} chars (size check after reading, not a memory cap)`,
+    );
     expect(resolveStopInput(" ".repeat(MAX_STDIN_CHARS)).problem).toBeNull();
 
     for (const bad of ["not json", '{"status":"nope"}', '"str"', '{"loop_count":-1}']) {
@@ -386,7 +405,7 @@ describe("vet-stop hook process", () => {
       marker = undefined;
     });
 
-    test.skipIf(!hasPgrep)(
+    test.skipIf(!hasPgrep())(
       "kills the whole vet process group and blocks with a timed-out message",
       async () => {
         dir = await mkdtemp(join(tmpdir(), "vet-stop-timeout-"));
@@ -412,7 +431,9 @@ describe("vet-stop hook process", () => {
   });
 });
 
-const hasPgrep = Bun.which("pgrep") !== null;
+function hasPgrep(): boolean {
+  return Bun.which("pgrep") !== null;
+}
 
 function sleeperPids(marker: string): number[] {
   const { stdout } = Bun.spawnSync(["pgrep", "-f", `sleep ${marker}`]);
