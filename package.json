@@ -22,6 +22,7 @@
     "lint:fix": "bunx oxlint --fix --type-aware",
     "rule-validator": "rule-validator",
     "stepdown": "stepdown-rule",
+    "crap4ts": "bun scripts/crap-gate.ts",
     "vet": "bun scripts/vet.ts"
   },
   "dependencies": {

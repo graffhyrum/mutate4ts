@@ -80,6 +80,6 @@ bun test --watch      # watch mode
 bun run typecheck     # bun check
 bun run lint          # oxlint type-aware rules
 bun run fmt           # bun fmt
-bun run vet           # full gate: fmt → typecheck → lint → rule-validator → stepdown → test:coverage (quiet on success)
+bun run vet           # full gate: fmt → audit → typecheck → lint → rule-validator → stepdown → crap4ts → test:coverage (quiet on success)
 bun run build         # tsc → dist/
 ```
