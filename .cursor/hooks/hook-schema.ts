@@ -12,8 +12,6 @@ export const ModelParamSchema = type({
   value: "string",
 });
 
-export type ModelParam = typeof ModelParamSchema.infer;
-
 /**
  * Base agent-hook input. Fields optional so scripts fail-open when a harness
  * omits them or tests pass a subset. Extra keys kept (ArkType default).
@@ -31,12 +29,8 @@ export const CommonHookInputSchema = type({
   "transcript_path?": "string | null",
 });
 
-export type CommonHookInput = typeof CommonHookInputSchema.infer;
-
 /** Shared by stop / subagentStop completion status (Cursor). */
 export const HookRunStatusSchema = type("'completed' | 'aborted' | 'error'");
-
-export type HookRunStatus = typeof HookRunStatusSchema.infer;
 
 /**
  * stop stdin fields for Cursor + Grok.
@@ -55,8 +49,6 @@ export const StopHookFieldsSchema = type({
   "workspaceRoot?": "string",
   "lastAssistantMessage?": "string",
 });
-
-export type StopHookFields = typeof StopHookFieldsSchema.infer;
 
 export const StopHookInputSchema = CommonHookInputSchema.merge(StopHookFieldsSchema);
 
@@ -84,7 +76,10 @@ export function parseHookPayload<t>(schema: Type<t>, value: unknown): Type<t>["i
 export function shouldRunStopGate(input: StopHookInput): boolean {
   // Grok session-end observe fires with reason other than end_turn
   // Cursor: only completed agent turns
+  // Grok stopHookActive: this hook already blocked once; blocking again would loop
+  // forever. Cursor bounds its retries with loop_limit instead.
   return (
+    input.stopHookActive !== true &&
     (input.reason === undefined || input.reason === "end_turn") &&
     (input.status === undefined || input.status === "completed")
   );

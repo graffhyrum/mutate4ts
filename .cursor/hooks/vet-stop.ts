@@ -3,7 +3,8 @@
  * Always exits 0 so harness fail-open never drops the agent loop.
  * - `bun run vet` non-zero or timed out → block finish with failure context:
  *   Cursor: `followup_message`; Grok: `decision: "block"` + `reason`
- * - parse fail / non-completed / session-end / skip → stdout `{}`
+ * - bad, oversized or unparseable stdin → logged to stderr, gate runs as for a completed turn
+ * - non-completed / session-end / stopHookActive / skip → stdout `{}`
  *
  * This file is process I/O only (ignored by bun coverage; test/vet-stop.test.ts
  * spawns it). Pure logic lives in vet-stop-lib.ts.
@@ -14,11 +15,10 @@
  * - MUTATE4TS_VET_CMD — override the vet command (split on whitespace, no quoted args)
  * - MUTATE4TS_VET_TIMEOUT_MS — vet timeout, positive integer (default 280000)
  */
-import { stdin } from "bun";
+import { type Subprocess, stdin } from "bun";
 import {
   type StopHookInput,
   type StopHookOutput,
-  StopHookInputSchema,
   StopHookOutputSchema,
   blockStopOutput,
   parseHookPayload,
@@ -27,10 +27,11 @@ import {
 import {
   ENV_SKIP_NO_CODE,
   MAX_OUTPUT_CHARS,
-  MAX_STDIN_CHARS,
   buildFollowup,
+  buildTimeoutFollowup,
   keepTail,
   porcelainHasCodeChanges,
+  resolveStopInput,
   vetCommand,
   vetTimeoutMs,
 } from "./vet-stop-lib";
@@ -41,9 +42,9 @@ if (import.meta.main) {
   await runEntry();
 }
 
-async function runEntry(): Promise<void> {
+export async function runEntry(run: () => Promise<void> = main): Promise<void> {
   try {
-    await main();
+    await run();
   } catch (error) {
     // Raw write: the fallback must not go through the asserting emit().
     console.error("[vet-stop] fatal", error);
@@ -54,17 +55,12 @@ async function runEntry(): Promise<void> {
   process.exit(0);
 }
 
-export async function main(): Promise<void> {
-  let input: StopHookInput;
-  try {
-    input = await readStopInput();
-  } catch (error) {
-    console.error("[vet-stop] stdin parse failed", error);
-    emit({});
-    return;
-  }
-
+async function main(): Promise<void> {
+  const input = await readStopInput();
   if (!shouldRunStopGate(input)) {
+    if (input.stopHookActive === true) {
+      console.error("[vet-stop] skip: stopHookActive");
+    }
     emit({});
     return;
   }
@@ -83,7 +79,7 @@ export async function main(): Promise<void> {
     const { exitCode, stdout, stderr, timedOut } = await runVet();
     if (timedOut) {
       console.error(`[vet-stop] ${commandLabel} timed out`);
-      emit(blockStopOutput(buildTimeoutFollowup(commandLabel, stdout, stderr)));
+      emit(blockStopOutput(buildTimeoutFollowup(commandLabel, vetTimeoutMs(), stdout, stderr)));
       return;
     }
     if (exitCode === 0) {
@@ -102,12 +98,6 @@ export async function main(): Promise<void> {
   }
 }
 
-function buildTimeoutFollowup(commandLabel: string, stdout: string, stderr: string): string {
-  const timeoutMs = vetTimeoutMs();
-  const failure = buildFollowup(1, stdout, stderr, commandLabel);
-  return `Stop hook: \`${commandLabel}\` timed out after ${timeoutMs} ms and was killed.\n\n${failure}`;
-}
-
 async function runVet(): Promise<VetResult> {
   const proc = Bun.spawn(vetCommand(), {
     cwd: process.cwd(),
@@ -121,7 +111,7 @@ async function runVet(): Promise<VetResult> {
   let timedOut = false;
   const timer = setTimeout(() => {
     timedOut = true;
-    killGroup(proc.pid);
+    killGroup(proc);
   }, vetTimeoutMs());
   try {
     const [stdout, stderr, exitCode] = await Promise.all([
@@ -135,11 +125,13 @@ async function runVet(): Promise<VetResult> {
   }
 }
 
-function killGroup(pid: number): void {
+function killGroup(proc: Subprocess): void {
   try {
-    process.kill(-pid, "SIGKILL");
+    process.kill(-proc.pid, "SIGKILL");
   } catch (error) {
-    console.error("[vet-stop] kill group failed", error);
+    // No process groups (Windows): only the direct child is killed there.
+    console.error("[vet-stop] kill group failed, killing direct child", error);
+    proc.kill();
   }
 }
 
@@ -186,14 +178,11 @@ async function hasRelevantCodeChanges(): Promise<boolean> {
 }
 
 async function readStopInput(): Promise<StopHookInput> {
-  const text = await stdin.text();
-  if (text.length > MAX_STDIN_CHARS) {
-    throw new Error(`stdin exceeds ${MAX_STDIN_CHARS} chars`);
+  const { input, problem } = resolveStopInput(await stdin.text());
+  if (problem) {
+    console.error(`[vet-stop] ${problem}; running the gate anyway`);
   }
-  if (!text.trim()) {
-    return { status: "completed" };
-  }
-  return parseHookPayload(StopHookInputSchema, JSON.parse(text));
+  return input;
 }
 
 function emit(payload: StopHookOutput): void {

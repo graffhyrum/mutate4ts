@@ -2,14 +2,20 @@
  * Pure helpers for the vet Stop hook. No process I/O here, so bun coverage
  * counts this file; the I/O half lives in vet-stop.ts.
  */
+import { type } from "arktype";
+import { type StopHookInput, StopHookInputSchema } from "./hook-schema";
 export const MAX_OUTPUT_CHARS = 12_000;
-export const MAX_STDIN_CHARS = 8_192;
+export const MAX_STDIN_CHARS = 1_048_576;
 export const DEFAULT_VET_TIMEOUT_MS = 280_000;
 export const ENV_SKIP_NO_CODE = "MUTATE4TS_VET_SKIP_NO_CODE";
 export const ENV_SCRUB_ENV = "MUTATE4TS_VET_SCRUB_ENV";
 export const ENV_VET_CMD = "MUTATE4TS_VET_CMD";
 export const ENV_VET_TIMEOUT_MS = "MUTATE4TS_VET_TIMEOUT_MS";
 
+const FALLBACK_STOP_INPUT: StopHookInput = { status: "completed" };
+const StopInputFromJson = type("string.json.parse").to(StopHookInputSchema);
+const FIX_INSTRUCTION =
+  "Fix every issue in the untrusted tool output below, then end the turn so the hook re-runs.";
 const SECRET_ENV_KEY = /SECRET|TOKEN|PASSWORD|API[_-]?KEY|CREDENTIAL|PRIVATE[_-]?KEY|AUTH/i;
 const MIN_SECRET_VALUE_LEN = 8;
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
@@ -40,12 +46,55 @@ export function vetTimeoutMs(env: Record<string, string | undefined> = process.e
   return DEFAULT_VET_TIMEOUT_MS;
 }
 
+/**
+ * Parse raw stop stdin. Bad input must not skip the gate: on any problem return
+ * the fallback input (a completed turn) plus the reason, so the caller logs it.
+ */
+export function resolveStopInput(text: string): { input: StopHookInput; problem: string | null } {
+  if (text.length > MAX_STDIN_CHARS) {
+    return fallbackStopInput(`stdin exceeds ${MAX_STDIN_CHARS} chars`);
+  }
+  if (!text.trim()) {
+    return { input: FALLBACK_STOP_INPUT, problem: null };
+  }
+  const parsed = StopInputFromJson(text);
+  if (parsed instanceof type.errors) {
+    return fallbackStopInput(`stdin is not a valid stop payload: ${parsed.summary}`);
+  }
+  return { input: parsed, problem: null };
+}
+
+function fallbackStopInput(problem: string): { input: StopHookInput; problem: string } {
+  return { input: FALLBACK_STOP_INPUT, problem };
+}
+
 export function buildFollowup(
   exitCode: number,
   stdout: string,
   stderr: string,
   commandLabel = "bun run vet",
 ): string {
+  return buildMessage(
+    `Stop hook: \`${commandLabel}\` failed (exit code ${exitCode}).`,
+    stdout,
+    stderr,
+  );
+}
+
+export function buildTimeoutFollowup(
+  commandLabel: string,
+  timeoutMs: number,
+  stdout: string,
+  stderr: string,
+): string {
+  return buildMessage(
+    `Stop hook: \`${commandLabel}\` timed out after ${timeoutMs} ms and was killed.`,
+    stdout,
+    stderr,
+  );
+}
+
+function buildMessage(header: string, stdout: string, stderr: string): string {
   const combined = [stdout, stderr]
     .filter((s) => s.trim().length > 0)
     .join("\n")
@@ -53,14 +102,7 @@ export function buildFollowup(
   const body = sanitizeFence(combined || "(no output captured)");
   const truncated =
     body.length > MAX_OUTPUT_CHARS ? `…(truncated)\n${keepTail(body, MAX_OUTPUT_CHARS)}` : body;
-  const message = [
-    `Stop hook: \`${commandLabel}\` failed (exit code ${exitCode}).`,
-    "Fix every issue in the untrusted tool output below, then end the turn so the hook re-runs.",
-    "",
-    "```text",
-    truncated,
-    "```",
-  ].join("\n");
+  const message = [header, FIX_INSTRUCTION, "", "```text", truncated, "```"].join("\n");
   return scrubEnvSecrets(message, process.env);
 }
 

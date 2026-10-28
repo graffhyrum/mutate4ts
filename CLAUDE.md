@@ -28,7 +28,7 @@ Bun is the runtime — not Node. Use `Bun.file`, `Bun.$`, `bun:sqlite`, etc. ins
 ## Toolchain
 
 - **Coverage**: `bunfig.toml` sets a 0.95 threshold (funcs and lines). Only `.cursor/hooks/vet-stop.ts` (process I/O) is ignored there; `test/vet-stop.test.ts` tests it by spawning it. The pure logic in `.cursor/hooks/vet-stop-lib.ts` is counted by coverage.
-- **Agent hook**: Cursor/Grok Stop hook (`.cursor/hooks.json`, `.grok/hooks/vet-stop.json`) runs `bun run vet` after each agent turn. Env: `MUTATE4TS_VET_CMD` (override command; split on whitespace, quoted arguments are not supported), `MUTATE4TS_VET_TIMEOUT_MS` (vet timeout, positive integer, default 280000), `MUTATE4TS_VET_SKIP_NO_CODE=1` (skip when no code paths changed), `MUTATE4TS_VET_SCRUB_ENV=1` (redact secrets in output).
+- **Agent hook**: Cursor/Grok Stop hook (`.cursor/hooks.json`, `.grok/hooks/vet-stop.json`) runs `bun run vet` after each agent turn. Env: `MUTATE4TS_VET_CMD` (override command; split on whitespace, quoted arguments are not supported), `MUTATE4TS_VET_TIMEOUT_MS` (vet timeout, positive integer, default 280000), `MUTATE4TS_VET_SKIP_NO_CODE=1` (skip when no code paths changed), `MUTATE4TS_VET_SCRUB_ENV=1` (redact secrets in output). Stdin that is over 1 MiB, not JSON or not a stop payload is logged to stderr and the gate runs anyway. Grok sends `stopHookActive` after one block, so Grok gets one fix-up round per stop; Cursor gets up to `loop_limit` (5) rounds.
 - **Formatter**: `bun fmt` (Bun 1.4.4). Reads `.oxfmtrc.json`.
 - **Typecheck**: `bun check` (Bun 1.4.4). The `typescript` dependency stays for the compiler API.
 - **Linter**: `oxlint` with type-aware checks via `oxlint-tsgolint`.
