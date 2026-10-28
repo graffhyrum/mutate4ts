@@ -12,6 +12,7 @@ const steps: readonly Step[] = [
   { label: "lint", argv: ["bun", "run", "lint"] },
   { label: "rule-validator", argv: ["bun", "run", "rule-validator"] },
   { label: "stepdown", argv: ["bun", "run", "stepdown"] },
+  // Tests run again in test:coverage: deliberate (crap needs lcov, the next step prints the table); costs a few seconds.
   { label: "crap4ts", argv: ["bun", "run", "crap4ts"] },
   { label: "test:coverage", argv: ["bun", "run", "test:coverage"] },
 ];

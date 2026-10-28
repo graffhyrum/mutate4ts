@@ -1,6 +1,7 @@
 [test]
 coverageThreshold = 0.95
 coverageSkipTestFiles = true
-# vet-stop.ts is process I/O (stdin, spawn, exit); test/vet-stop.test.ts covers it
-# by spawning the hook, which bun coverage does not count.
+# Only vet-stop.ts (process I/O: stdin, spawn, exit) is ignored; test/vet-stop.test.ts
+# tests it by spawning the hook, which bun coverage does not count. The pure logic
+# in vet-stop-lib.ts is counted.
 coveragePathIgnorePatterns = [".cursor/hooks/vet-stop.ts"]

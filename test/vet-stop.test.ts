@@ -1,5 +1,8 @@
 import { type } from "arktype";
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   blockStopOutput,
   CommonHookInputSchema,
@@ -10,10 +13,14 @@ import {
 } from "../.cursor/hooks/hook-schema";
 import {
   buildFollowup,
+  DEFAULT_VET_TIMEOUT_MS,
   isCodePath,
+  keepTail,
   porcelainHasCodeChanges,
   scrubEnvSecrets,
-} from "../.cursor/hooks/vet-stop";
+  vetCommand,
+  vetTimeoutMs,
+} from "../.cursor/hooks/vet-stop-lib";
 
 describe("isCodePath", () => {
   test("accepts src test scripts hooks and root configs", () => {
@@ -115,6 +122,39 @@ describe("buildFollowup", () => {
   });
 });
 
+describe("vetTimeoutMs", () => {
+  test("uses a positive integer from env", () => {
+    expect(vetTimeoutMs({ MUTATE4TS_VET_TIMEOUT_MS: "500" })).toBe(500);
+    expect(vetTimeoutMs({ MUTATE4TS_VET_TIMEOUT_MS: " 42 " })).toBe(42);
+  });
+
+  test("falls back to the default for anything else", () => {
+    for (const bad of ["", "0", "-5", "1.5", "abc", "10ms", "1e3", "99999999999999999999"]) {
+      expect(vetTimeoutMs({ MUTATE4TS_VET_TIMEOUT_MS: bad })).toBe(DEFAULT_VET_TIMEOUT_MS);
+    }
+    expect(vetTimeoutMs({})).toBe(280_000);
+  });
+});
+
+describe("vetCommand", () => {
+  test("defaults to bun run vet", () => {
+    expect(vetCommand({})).toEqual(["bun", "run", "vet"]);
+    expect(vetCommand({ MUTATE4TS_VET_CMD: "   " })).toEqual(["bun", "run", "vet"]);
+  });
+
+  test("splits the override on whitespace without quote handling", () => {
+    expect(vetCommand({ MUTATE4TS_VET_CMD: "  sh  a/b.sh " })).toEqual(["sh", "a/b.sh"]);
+    expect(vetCommand({ MUTATE4TS_VET_CMD: `sh -c "x y"` })).toEqual(["sh", "-c", `"x`, `y"`]);
+  });
+});
+
+describe("keepTail", () => {
+  test("keeps short text and trims long text from the front", () => {
+    expect(keepTail("abc", 5)).toBe("abc");
+    expect(keepTail("abcdef", 3)).toBe("def");
+  });
+});
+
 describe("hook-schema stop I/O", () => {
   test("parses minimal and full stop input", () => {
     expect(parseHookPayload(StopHookInputSchema, { status: "completed" })).toEqual({
@@ -193,12 +233,12 @@ describe("hook-schema stop I/O", () => {
 });
 
 describe("vet-stop hook process", () => {
-  async function runHook(stdin: string, vetCmd: string) {
+  async function runHook(stdin: string, vetCmd: string, extraEnv: Record<string, string> = {}) {
     const proc = Bun.spawn(["bun", ".cursor/hooks/vet-stop.ts"], {
       stdin: new Blob([stdin]),
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, MUTATE4TS_VET_CMD: vetCmd },
+      env: { ...process.env, MUTATE4TS_VET_CMD: vetCmd, ...extraEnv },
     });
     const [stdout, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
     return { stdout: stdout.trim(), exitCode };
@@ -230,4 +270,47 @@ describe("vet-stop hook process", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toBe("{}");
   });
+
+  describe("timeout", () => {
+    let dir: string | undefined;
+    let marker: string | undefined;
+
+    afterEach(async () => {
+      // Safety net: kill leftover sleepers (marker is unique to this run) by pid.
+      if (marker) {
+        for (const pid of sleeperPids(marker)) {
+          process.kill(pid, "SIGKILL");
+        }
+      }
+      if (dir) {
+        await rm(dir, { recursive: true, force: true });
+      }
+      dir = undefined;
+      marker = undefined;
+    });
+
+    test("kills the whole vet process group and blocks with a timed-out message", async () => {
+      dir = await mkdtemp(join(tmpdir(), "vet-stop-timeout-"));
+      marker = `31.${Date.now()}`;
+      const script = join(dir, "slow.sh");
+      await Bun.write(script, `sleep ${marker} &\nsleep ${marker}\n`);
+
+      const started = Date.now();
+      const { stdout, exitCode } = await runHook('{"status":"completed"}', `sh ${script}`, {
+        MUTATE4TS_VET_TIMEOUT_MS: "500",
+      });
+
+      expect(Date.now() - started).toBeLessThan(10_000);
+      expect(exitCode).toBe(0);
+      const out = JSON.parse(stdout);
+      expect(out.decision).toBe("block");
+      expect(out.reason).toContain("timed out after 500 ms");
+      expect(sleeperPids(marker)).toEqual([]);
+    }, 15_000);
+  });
 });
+
+function sleeperPids(marker: string): number[] {
+  const { stdout } = Bun.spawnSync(["pgrep", "-f", `sleep ${marker}`]);
+  return stdout.toString().split("\n").filter(Boolean).map(Number);
+}
