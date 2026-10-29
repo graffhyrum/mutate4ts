@@ -30,10 +30,18 @@ describe("mutate4ts CLI", () => {
     expect(result.stdout).toContain("Usage:");
   });
 
-  test("rejects non-.ts files", () => {
+  test("rejects non-.ts files with exit 2, an Error line and no stack trace", () => {
     const result = run(["somefile.js"]);
-    expect(result.exitCode).not.toBe(0);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("Error: ");
     expect(result.stderr).toContain("must be a .ts or .tsx file");
+    expect(result.stderr).not.toContain("    at ");
+  });
+
+  test("rejects unknown flag with exit 2", () => {
+    const result = run(["--nope", "test/fixtures/sample.ts"]);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("Unknown flag: --nope");
   });
 
   test("--scan lists mutation sites", () => {
@@ -112,7 +120,7 @@ describe("mutate4ts CLI", () => {
 
   test("rejects invalid --lines value", () => {
     const result = run(["--lines", "abc", "test/fixtures/sample.ts"]);
-    expect(result.exitCode).toBe(1);
+    expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("Invalid");
   });
 

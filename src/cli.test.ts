@@ -83,33 +83,33 @@ describe("exit paths", () => {
     expect(out).toStartWith("Usage: mutate4ts [options] <sourceFile>");
   });
 
-  test("invalid --lines value prints error and usage to stderr, exits 1", () => {
+  test("invalid --lines value prints error and usage to stderr, exits 2", () => {
     const { code, err } = captureExit(() =>
       parseCliOptions(argv("--lines", "1,x", "src/index.ts")),
     );
-    expect(code).toBe(1);
+    expect(code).toBe(2);
     expect(err).toContain("Error: Invalid --lines value: 1,x");
     expect(err).toContain("Usage: mutate4ts");
   });
 
-  test("missing source file prints error and usage, exits 1", () => {
+  test("missing source file prints error and usage, exits 2", () => {
     const { code, err } = captureExit(() => parseCliOptions(argv("--scan")));
-    expect(code).toBe(1);
+    expect(code).toBe(2);
     expect(err).toContain("Error: ");
     expect(err).toContain("Usage: mutate4ts");
   });
 
-  test("unknown flag exits 1", () => {
+  test("unknown flag exits 2", () => {
     const { code, err } = captureExit(() => parseCliOptions(argv("--nope")));
-    expect(code).toBe(1);
+    expect(code).toBe(2);
     expect(err).toContain("Unknown flag: --nope");
   });
 
-  test("invalid --timeout-factor exits 1", () => {
+  test("invalid --timeout-factor exits 2", () => {
     const { code, err } = captureExit(() =>
       parseCliOptions(argv("--timeout-factor", "abc", "a.ts")),
     );
-    expect(code).toBe(1);
+    expect(code).toBe(2);
     expect(err).toContain("Invalid number for --timeoutFactor: abc");
   });
 });

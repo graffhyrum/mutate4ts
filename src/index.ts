@@ -1,5 +1,5 @@
 import { Cause, Effect, Exit, Fiber } from "effect";
-import { parseCliOptions } from "./cli.ts";
+import { parseCliOptions, exitWithUsage } from "./cli.ts";
 import type { ResolvedOptions } from "./cli.ts";
 import { scanFile, readFile } from "./scan.ts";
 import type { ScanError } from "./scan.ts";
@@ -9,6 +9,7 @@ import { executeMutations } from "./execute.ts";
 import type { MutationResult } from "./execute.ts";
 import type { FileError } from "./file-ops.ts";
 import { formatReport } from "./report.ts";
+import { exitCodeFor } from "./exit-code.ts";
 import type { MutationSite } from "./mutations/registry.ts";
 
 function main(): void {
@@ -27,15 +28,20 @@ function main(): void {
     if (Cause.isInterrupted(exit.cause)) {
       process.exit(130);
     } else {
-      console.error(Cause.squash(exit.cause));
+      console.error(`Error: ${describeFailure(Cause.squash(exit.cause))}`);
       process.exit(2);
     }
   });
 }
 
+function describeFailure(failure: unknown): string {
+  if (failure instanceof Error) return failure.message;
+  return String(failure);
+}
+
 function validateSourceFile(filePath: string): void {
   if (!filePath.endsWith(".ts") && !filePath.endsWith(".tsx"))
-    throw new Error(`File must be a .ts or .tsx file: ${filePath}`);
+    exitWithUsage(`File must be a .ts or .tsx file: ${filePath}`);
 }
 
 function buildScanProgram(opts: ResolvedOptions): Effect.Effect<void, ScanError> {
@@ -120,8 +126,7 @@ function indent(text: string): string {
 }
 
 function exitWithScore(results: readonly MutationResult[]): void {
-  const survived = results.some((r) => r.outcome.status === "survived");
-  process.exit(survived ? 1 : 0);
+  process.exit(exitCodeFor(results));
 }
 
 main();

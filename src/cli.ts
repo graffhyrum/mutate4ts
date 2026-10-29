@@ -110,7 +110,7 @@ function showHelp(): never {
 function exitWithUsage(message: string): never {
   console.error(`Error: ${message}\n`);
   console.error(USAGE);
-  return process.exit(1);
+  return process.exit(2);
 }
 
 const USAGE = `Usage: mutate4ts [options] <sourceFile>
