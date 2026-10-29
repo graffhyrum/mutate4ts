@@ -12,5 +12,5 @@
     "lib": ["ESNext"],
     "types": ["bun-types"]
   },
-  "include": ["src", "test", "scripts"]
+  "include": ["src", "test", "scripts", ".cursor/hooks"]
 }

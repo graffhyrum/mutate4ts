@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [
+      {
+        "command": "bun .cursor/hooks/vet-stop.ts",
+        "timeout": 300,
+        "loop_limit": 5
+      }
+    ]
+  }
+}

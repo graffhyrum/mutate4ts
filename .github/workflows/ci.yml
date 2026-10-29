@@ -34,6 +34,9 @@ jobs:
       - name: Format check
         run: bun run fmt:check
 
+      - name: Audit
+        run: bun audit
+
       - name: Typecheck
         run: bun run typecheck
 
@@ -45,6 +48,9 @@ jobs:
 
       - name: Stepdown rule
         run: bun run stepdown
+
+      - name: CRAP gate
+        run: bun run crap4ts
 
       - name: Test with coverage
         run: bun run test:coverage
