@@ -86,6 +86,60 @@ describe("mutate4ts CLI", () => {
       );
       const stdout = result.stdout.toString();
       expect(stdout).toContain("KILLED");
+      expect(result.exitCode).toBe(0);
+    });
+  });
+
+  describe("exit code 1 when a mutation survives", () => {
+    let tempDir: string;
+
+    beforeAll(() => {
+      tempDir = mkdtempSync(join(tmpdir(), "mutate4ts-survive-"));
+      writeTempProject(tempDir, {
+        "src/target.ts": "export function isTrue() { return true; }\n",
+        // The test calls the function but asserts nothing, so mutants survive.
+        "src/target.test.ts": [
+          'import { test } from "bun:test";',
+          'import { isTrue } from "./target.ts";',
+          'test("isTrue", () => { isTrue(); });',
+          "",
+        ].join("\n"),
+      });
+    });
+
+    afterAll(() => rmSync(tempDir, { recursive: true, force: true }));
+
+    test("exits 1 and reports SURVIVED", () => {
+      const result = Bun.spawnSync(
+        ["bun", "run", cli, "--test-command", "bun test", "src/target.ts"],
+        { cwd: tempDir },
+      );
+      expect(result.stdout.toString()).toContain("SURVIVED");
+      expect(result.exitCode).toBe(1);
+    });
+  });
+
+  describe("exit code 3 when a mutation errors", () => {
+    let tempDir: string;
+
+    beforeAll(() => {
+      tempDir = mkdtempSync(join(tmpdir(), "mutate4ts-error-"));
+      writeTempProject(tempDir, {
+        "src/target.ts": "export function isTrue() { return true; }\n",
+      });
+    });
+
+    afterAll(() => rmSync(tempDir, { recursive: true, force: true }));
+
+    test("exits 3 when the test command cannot be spawned after the baseline", () => {
+      // Passes the baseline run, then deletes itself, so spawning it for the first mutant throws.
+      const script = join(tempDir, "once.sh");
+      writeFileSync(script, '#!/bin/sh\nrm -- "$0"\n', { mode: 0o755 });
+      const result = Bun.spawnSync(["bun", "run", cli, "--test-command", script, "src/target.ts"], {
+        cwd: tempDir,
+      });
+      expect(result.stdout.toString()).toContain("ERROR");
+      expect(result.exitCode).toBe(3);
     });
   });
 
@@ -109,13 +163,22 @@ describe("mutate4ts CLI", () => {
       rmSync(tempDir, { recursive: true, force: true });
     });
 
-    test("exits with code 2 when baseline tests fail", () => {
+    test("exits with code 2, an Error line and no stack trace when baseline tests fail", () => {
       const result = Bun.spawnSync(
         ["bun", "run", cli, "--test-command", "bun test", "src/target.ts"],
         { cwd: tempDir },
       );
       expect(result.exitCode).toBe(2);
+      expect(result.stderr.toString()).toContain("Error: BaselineFailedError");
+      expect(result.stderr.toString()).not.toContain("    at ");
     });
+  });
+
+  test("a missing source file exits 2 with an Error line and no stack trace", () => {
+    const result = run(["--scan", "test/fixtures/does-not-exist.ts"]);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toMatch(/^Error: /m);
+    expect(result.stderr).not.toContain("    at ");
   });
 
   test("rejects invalid --lines value", () => {

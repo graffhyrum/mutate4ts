@@ -53,7 +53,8 @@ bun src/index.ts --lines 42,43,44 src/my-module.ts
 1. Parses the source file with the TypeScript compiler API
 2. Runs the baseline test suite and records its duration
 3. For each mutation site: applies the mutation, runs tests with a timeout of `baseline × timeoutFactor`, restores the original, records `killed` / `survived` / `timeout`
-4. Prints a report (a timed-out mutation counts as killed in the Mutation Score) and exits with `0` if every mutation was detected, `1` if any survived, `3` if any errored (the highest code wins)
+4. Prints a report. A timed-out mutation counts as killed in the Mutation Score.
+5. Exits with `0` if every mutation was detected, `1` if any survived, or `3` if any errored. The highest code wins.
 
 ## Mutation operators
 

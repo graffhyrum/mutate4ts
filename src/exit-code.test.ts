@@ -1,5 +1,6 @@
 import { test, expect, describe } from "bun:test";
-import { OUTCOME_EXIT_CODE, exitCodeFor } from "./exit-code.ts";
+import { exitCodeFor } from "./exit-code.ts";
+import type { MutationSite } from "./mutations/registry.ts";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,7 +16,7 @@ async function runRealMutation(testCommand: readonly string[], timeoutMs: number
     await Bun.write(filePath, originalSource);
     const start = originalSource.indexOf("true");
     const site = {
-      ...resultWith({ status: "survived" }).site,
+      ...baseSite,
       filePath,
       span: { start, end: start + 4 },
       originalText: "true",
@@ -38,21 +39,23 @@ async function runRealMutation(testCommand: readonly string[], timeoutMs: number
 
 function resultWith(outcome: MutationOutcome): MutationResult {
   return {
-    site: {
-      filePath: "a.ts",
-      span: { start: 0, end: 1 },
-      originalText: "a",
-      mutatedText: "b",
-      category: { kind: "null-return" },
-      description: "d",
-      line: 1,
-      column: 1,
-    },
+    site: baseSite,
     outcome,
     durationMs: 0,
     testOutput: "",
   };
 }
+
+const baseSite: MutationSite = {
+  filePath: "a.ts",
+  span: { start: 0, end: 1 },
+  originalText: "a",
+  mutatedText: "b",
+  category: { kind: "null-return" },
+  description: "d",
+  line: 1,
+  column: 1,
+};
 
 const killed = resultWith({ status: "killed", exitCode: 1 });
 const survived = resultWith({ status: "survived" });
@@ -84,7 +87,7 @@ describe("exitCodeFor through executeMutations", () => {
     try {
       const results = await Effect.runPromise(
         executeMutations({
-          sites: [resultWith({ status: "survived" }).site],
+          sites: [baseSite],
           filePath: dir,
           originalSource: "a",
           testCommand: ["true"],
@@ -107,46 +110,20 @@ describe("exitCodeFor through executeMutations", () => {
 });
 
 describe("exitCodeFor", () => {
+  test("maps killed 0, survived 1, timeout 0, error 3 (ADR 0001)", () => {
+    const codes = [killed, survived, timeout, errored].map((r) => exitCodeFor([r]));
+    expect(codes).toEqual([0, 1, 0, 3]);
+  });
+
   test("empty results exit 0", () => {
     expect(exitCodeFor([])).toBe(0);
-  });
-
-  test("killed-only results exit 0", () => {
-    expect(exitCodeFor([killed, killed])).toBe(0);
-  });
-
-  test("any survived exits 1", () => {
-    expect(exitCodeFor([killed, survived])).toBe(1);
-  });
-
-  test("timeout-only results exit 0", () => {
-    expect(exitCodeFor([timeout, timeout])).toBe(0);
   });
 
   test("killed and timeout results exit 0", () => {
     expect(exitCodeFor([killed, timeout])).toBe(0);
   });
 
-  test("any error exits 3", () => {
-    expect(exitCodeFor([killed, errored])).toBe(3);
-  });
-
   test("survived and error together exit 3, the highest code", () => {
     expect(exitCodeFor([survived, errored, killed])).toBe(3);
-  });
-
-  test("the table maps killed 0, survived 1, timeout 0, error 3", () => {
-    expect(OUTCOME_EXIT_CODE).toEqual({ killed: 0, survived: 1, timeout: 0, error: 3 });
-  });
-
-  test("result is the maximum mapped code, read from the table", () => {
-    const table = OUTCOME_EXIT_CODE;
-    for (const r of [killed, survived, timeout, errored]) {
-      expect(exitCodeFor([r])).toBe(table[r.outcome.status]);
-    }
-    const highest = Math.max(
-      ...[killed, survived, timeout, errored].map((r) => table[r.outcome.status]),
-    );
-    expect<number>(exitCodeFor([killed, survived, timeout, errored])).toBe(highest);
   });
 });
