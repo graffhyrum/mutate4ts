@@ -16,7 +16,8 @@ function formatSummary(results: readonly MutationResult[]): string {
   const survived = count(results, "survived");
   const timeout = count(results, "timeout");
   const errors = count(results, "error");
-  const score = results.length > 0 ? ((killed / results.length) * 100).toFixed(1) : "0.0";
+  const score =
+    results.length > 0 ? (((killed + timeout) / results.length) * 100).toFixed(1) : "0.0";
   return [
     `Mutation Score: ${score}%`,
     `  ${killed} killed, ${survived} survived, ${timeout} timed out, ${errors} errors`,

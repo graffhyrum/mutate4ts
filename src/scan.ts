@@ -1,9 +1,14 @@
 import { Data, Effect } from "effect";
 import { parseSourceFile } from "./ast.ts";
+import { causeMessage } from "./cause-message.ts";
 import { findAllMutations } from "./mutations/registry.ts";
 import type { MutationSite } from "./mutations/registry.ts";
 
-class ScanError extends Data.TaggedError("ScanError")<{ path: string; cause: unknown }> {}
+class ScanError extends Data.TaggedError("ScanError")<{ path: string; cause: unknown }> {
+  get message(): string {
+    return `${this.path}: ${causeMessage(this.cause)}`;
+  }
+}
 
 function scanFile(
   filePath: string,

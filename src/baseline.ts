@@ -1,4 +1,5 @@
 import { Data, Effect } from "effect";
+import { causeMessage } from "./cause-message.ts";
 import { runTestCommand } from "./runner.ts";
 
 type BaselineResult = {
@@ -9,7 +10,14 @@ class BaselineFailedError extends Data.TaggedError("BaselineFailedError")<{
   exitCode: number;
 }> {}
 
-class SpawnError extends Data.TaggedError("SpawnError")<{ cause: unknown }> {}
+class SpawnError extends Data.TaggedError("SpawnError")<{
+  command: readonly string[];
+  cause: unknown;
+}> {
+  get message(): string {
+    return `could not run ${this.command.join(" ")}: ${causeMessage(this.cause)}`;
+  }
+}
 
 function runBaseline(
   testCommand: readonly string[],
@@ -18,7 +26,7 @@ function runBaseline(
   const start = performance.now();
   return Effect.try({
     try: () => runTestCommand(testCommand, timeoutMs),
-    catch: (cause) => new SpawnError({ cause }),
+    catch: (cause) => new SpawnError({ command: testCommand, cause }),
   }).pipe(
     Effect.flatMap((result) =>
       result.exitCode !== 0
