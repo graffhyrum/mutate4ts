@@ -1,18 +1,19 @@
 import type { MutationOutcome, MutationResult } from "./execute.ts";
 
-function exitCodeFor(results: readonly MutationResult[]): 0 | 1 {
-  return results.reduce<0 | 1>(
-    (max, r) => (OUTCOME_EXIT_CODE[r.outcome.status] > max ? 1 : max),
+function exitCodeFor(results: readonly MutationResult[]): 0 | 1 | 3 {
+  return results.reduce<0 | 1 | 3>(
+    (max, r) =>
+      OUTCOME_EXIT_CODE[r.outcome.status] > max ? OUTCOME_EXIT_CODE[r.outcome.status] : max,
     0,
   );
 }
 
-// Open question: timeouts and errors count as failures for now. Flip them by editing this table only.
-const OUTCOME_EXIT_CODE: Record<MutationOutcome["status"], 0 | 1> = {
+// Rationale for each code: docs/adr/0001-mutation-exit-codes.md
+const OUTCOME_EXIT_CODE: Record<MutationOutcome["status"], 0 | 1 | 3> = {
   killed: 0,
   survived: 1,
-  timeout: 1,
-  error: 1,
+  timeout: 0,
+  error: 3,
 };
 
 export { OUTCOME_EXIT_CODE, exitCodeFor };
