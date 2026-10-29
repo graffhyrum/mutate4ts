@@ -1,5 +1,6 @@
 import { test, expect, describe } from "bun:test";
-import { exitCodeFor } from "./exit-code.ts";
+import { exitCodeFor, fatalExitCode } from "./exit-code.ts";
+import { FileError, RestoreError } from "./file-ops.ts";
 import type { MutationSite } from "./mutations/registry.ts";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -106,6 +107,17 @@ describe("exitCodeFor through executeMutations", () => {
     const results = await runRealMutation(["mutate4ts-no-such-binary"], 1000);
     expect(results.map((r) => r.outcome.status)).toEqual(["error"]);
     expect(exitCodeFor(results)).toBe(3);
+  });
+});
+
+describe("fatalExitCode", () => {
+  test("a failed source restore exits 4", () => {
+    expect(fatalExitCode(new RestoreError({ path: "a.ts", cause: new Error("denied") }))).toBe(4);
+  });
+
+  test("any other fatal failure exits 2", () => {
+    const others = [new FileError({ path: "a.ts", cause: "x" }), new Error("boom"), "plain", null];
+    expect(others.map(fatalExitCode)).toEqual([2, 2, 2, 2]);
   });
 });
 

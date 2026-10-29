@@ -9,7 +9,7 @@ import { executeMutations } from "./execute.ts";
 import type { MutationResult } from "./execute.ts";
 import type { FileError } from "./file-ops.ts";
 import { formatReport } from "./report.ts";
-import { exitCodeFor } from "./exit-code.ts";
+import { exitCodeFor, fatalExitCode } from "./exit-code.ts";
 import { describeFailure } from "./describe-failure.ts";
 import type { MutationSite } from "./mutations/registry.ts";
 
@@ -30,7 +30,7 @@ function main(): void {
       process.exit(130);
     } else {
       console.error(`Error: ${describeFailure(Cause.squash(exit.cause))}`);
-      process.exit(2);
+      process.exit(fatalExitCode(Cause.squash(exit.cause)));
     }
   });
 }

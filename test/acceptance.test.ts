@@ -143,6 +143,42 @@ describe("mutate4ts CLI", () => {
     });
   });
 
+  describe("exit code 4 when restoring the source fails", () => {
+    let tempDir: string;
+
+    beforeAll(() => {
+      tempDir = mkdtempSync(join(tmpdir(), "mutate4ts-restore-"));
+      writeTempProject(tempDir, {
+        "src/target.ts": "export function isTrue() { return true; }\n",
+      });
+    });
+
+    afterAll(() => rmSync(tempDir, { recursive: true, force: true }));
+
+    test("exits 4 and names the file that may still be mutated", () => {
+      // Baseline passes. The first mutant run swaps the source for a directory of the same
+      // name, so Bun.write fails with EISDIR when the original is restored. No chmod, so it
+      // behaves the same for root and for ordinary users.
+      const script = join(tempDir, "break-restore.sh");
+      const body = [
+        "#!/bin/sh",
+        "if [ -e .baseline-done ]; then rm -f src/target.ts; mkdir src/target.ts; exit 1; fi",
+        ": > .baseline-done",
+        "",
+      ].join("\n");
+      writeFileSync(script, body, { mode: 0o755 });
+      const result = Bun.spawnSync(["bun", "run", cli, "--test-command", script, "src/target.ts"], {
+        cwd: tempDir,
+      });
+      const stderr = result.stderr.toString();
+      expect(result.exitCode).toBe(4);
+      expect(stderr).toMatch(/^Error: /m);
+      expect(stderr).toContain("src/target.ts");
+      expect(stderr).toContain("may still contain a mutation");
+      expect(stderr).not.toContain("    at ");
+    });
+  });
+
   describe("baseline test failure exits with code 2", () => {
     let tempDir: string;
 
@@ -178,6 +214,7 @@ describe("mutate4ts CLI", () => {
     const result = run(["--scan", "test/fixtures/does-not-exist.ts"]);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toMatch(/^Error: /m);
+    expect(result.stderr).toContain("does-not-exist.ts");
     expect(result.stderr).not.toContain("    at ");
   });
 
