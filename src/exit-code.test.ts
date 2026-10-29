@@ -1,11 +1,11 @@
 import { test, expect, describe } from "bun:test";
-import { exitCodeFor, fatalExitCode } from "./exit-code.ts";
+import { exitCodeFor, fatalOutcome } from "./exit-code.ts";
 import { FileError, RestoreError } from "./file-ops.ts";
 import type { MutationSite } from "./mutations/registry.ts";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect } from "effect";
+import { Cause, Effect, FiberId } from "effect";
 import { executeMutations } from "./execute.ts";
 import type { MutationOutcome, MutationResult } from "./execute.ts";
 
@@ -110,14 +110,42 @@ describe("exitCodeFor through executeMutations", () => {
   });
 });
 
-describe("fatalExitCode", () => {
-  test("a failed source restore exits 4", () => {
-    expect(fatalExitCode(new RestoreError({ path: "a.ts", cause: new Error("denied") }))).toBe(4);
+describe("fatalOutcome", () => {
+  const restoreError = new RestoreError({ path: "a.ts", cause: new Error("denied") });
+  const interrupt = Cause.interrupt(FiberId.none);
+
+  test("an interrupt alone exits 130 with no message", () => {
+    expect(fatalOutcome(interrupt)).toEqual({ exitCode: 130, message: null });
   });
 
-  test("any other fatal failure exits 2", () => {
-    const others = [new FileError({ path: "a.ts", cause: "x" }), new Error("boom"), "plain", null];
-    expect(others.map(fatalExitCode)).toEqual([2, 2, 2, 2]);
+  test("a failed source restore exits 4 and names the path", () => {
+    const outcome = fatalOutcome(Cause.die(restoreError));
+    expect(outcome.exitCode).toBe(4);
+    expect(outcome.message).toContain("a.ts may still contain a mutation");
+  });
+
+  test("a failed restore wins over an interrupt, whether sequential or parallel", () => {
+    const causes = [
+      Cause.sequential(interrupt, Cause.die(restoreError)),
+      Cause.sequential(Cause.die(restoreError), interrupt),
+      Cause.parallel(interrupt, Cause.die(restoreError)),
+    ];
+    const outcomes = causes.map(fatalOutcome);
+    expect(outcomes.map((o) => o.exitCode)).toEqual([4, 4, 4]);
+    expect(outcomes.every((o) => o.message?.includes("a.ts may still"))).toBe(true);
+  });
+
+  test("a typed failure exits 2 with its description", () => {
+    const outcome = fatalOutcome(Cause.fail(new FileError({ path: "b.ts", cause: "x" })));
+    expect(outcome.exitCode).toBe(2);
+    expect(outcome.message).toStartWith("Error: b.ts");
+  });
+
+  test("any other defect exits 2", () => {
+    expect(fatalOutcome(Cause.die(new Error("boom")))).toEqual({
+      exitCode: 2,
+      message: "Error: boom",
+    });
   });
 });
 

@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit, Fiber } from "effect";
+import { Effect, Exit, Fiber } from "effect";
 import { parseCliOptions, exitWithUsage } from "./cli.ts";
 import type { ResolvedOptions } from "./cli.ts";
 import { scanFile, readFile } from "./scan.ts";
@@ -9,8 +9,7 @@ import { executeMutations } from "./execute.ts";
 import type { MutationResult } from "./execute.ts";
 import type { FileError } from "./file-ops.ts";
 import { formatReport } from "./report.ts";
-import { exitCodeFor, fatalExitCode } from "./exit-code.ts";
-import { describeFailure } from "./describe-failure.ts";
+import { exitCodeFor, fatalOutcome } from "./exit-code.ts";
 import type { MutationSite } from "./mutations/registry.ts";
 
 function main(): void {
@@ -26,12 +25,9 @@ function main(): void {
   });
   fiber.addObserver((exit) => {
     if (!Exit.isFailure(exit)) return;
-    if (Cause.isInterrupted(exit.cause)) {
-      process.exit(130);
-    } else {
-      console.error(`Error: ${describeFailure(Cause.squash(exit.cause))}`);
-      process.exit(fatalExitCode(Cause.squash(exit.cause)));
-    }
+    const { exitCode, message } = fatalOutcome(exit.cause);
+    if (message !== null) console.error(message);
+    process.exit(exitCode);
   });
 }
 

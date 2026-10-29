@@ -25,7 +25,7 @@ In v1, usage errors (bad arguments) exited `1`, the same code as surviving mutan
 - An errored mutation is not killed. The score is incomplete, so the run exits `3`.
 - When a run has several outcomes, the exit code is the highest mapped code. Survivors plus errors exit `3`. The report still lists both.
 - `3` is not shared with `2`. Code `2` means nothing was measured. Code `3` means the run finished but some mutants could not be evaluated. Callers can tell the two apart.
-- `4` is not shared with `2` or `3`. Code `2` means nothing was measured, and code `3` means the run finished. After a failed restore the run stops, and the source file may still contain a mutation. Callers must know to repair the file (for example from version control) before they use it, so this case needs its own code.
+- `4` is not shared with `2` or `3`. Code `2` means nothing was measured, and code `3` means the run finished. After a failed restore the run stops, and the source file may still contain a mutation. Callers must know to repair the file (for example from version control) before they use it, so this case needs its own code. Code `4` covers only a failed restore. A failure while writing the mutant itself is reported as an errored mutation (`3`). Then the release step does not run, because `acquireUseRelease` skips it when the acquire step fails, so a partial write can stay in the file until the restore of a later mutation rewrites the original; after the last mutation nothing rewrites it.
 
 ## Consequences
 
