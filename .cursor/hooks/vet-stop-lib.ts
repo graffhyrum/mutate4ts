@@ -8,6 +8,8 @@ export const MAX_OUTPUT_CHARS = 12_000;
 // Size check applied after stdin is fully read; it is not a memory cap.
 export const MAX_STDIN_CHARS = 1_048_576;
 export const DEFAULT_VET_TIMEOUT_MS = 280_000;
+// Largest delay setTimeout accepts (32-bit signed); above it the timer fires after ~1 ms.
+export const MAX_TIMER_MS = 2_147_483_647;
 export const ENV_SKIP_NO_CODE = "MUTATE4TS_VET_SKIP_NO_CODE";
 export const ENV_SCRUB_ENV = "MUTATE4TS_VET_SCRUB_ENV";
 export const ENV_VET_CMD = "MUTATE4TS_VET_CMD";
@@ -37,11 +39,14 @@ export function vetCommand(env: Record<string, string | undefined> = process.env
   return ["bun", "run", "vet"];
 }
 
-/** Positive integer from env, else the default. */
+/** Positive integer from env, at most MAX_TIMER_MS, else the default. */
 export function vetTimeoutMs(env: Record<string, string | undefined> = process.env): number {
   const raw = env[ENV_VET_TIMEOUT_MS]?.trim();
-  if (raw && POSITIVE_INTEGER.test(raw) && Number.isSafeInteger(Number(raw))) {
-    return Number(raw);
+  if (raw && POSITIVE_INTEGER.test(raw)) {
+    const ms = Number(raw);
+    if (Number.isSafeInteger(ms) && ms <= MAX_TIMER_MS) {
+      return ms;
+    }
   }
   return DEFAULT_VET_TIMEOUT_MS;
 }

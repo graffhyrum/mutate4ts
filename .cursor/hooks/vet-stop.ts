@@ -13,7 +13,7 @@
  * - MUTATE4TS_VET_SKIP_NO_CODE=1 — skip vet when git porcelain has no code paths
  * - MUTATE4TS_VET_SCRUB_ENV=1 — redact secret-like env values in followup_message
  * - MUTATE4TS_VET_CMD — override the vet command (split on whitespace, no quoted args)
- * - MUTATE4TS_VET_TIMEOUT_MS — vet timeout, positive integer (default 280000)
+ * - MUTATE4TS_VET_TIMEOUT_MS — vet timeout, positive integer up to 2147483647 (default 280000)
  */
 import { type Subprocess, stdin } from "bun";
 import {

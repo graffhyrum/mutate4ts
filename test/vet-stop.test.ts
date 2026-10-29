@@ -16,6 +16,7 @@ import {
   buildFollowup,
   buildTimeoutFollowup,
   DEFAULT_VET_TIMEOUT_MS,
+  MAX_TIMER_MS,
   isCodePath,
   keepTail,
   MAX_STDIN_CHARS,
@@ -200,6 +201,13 @@ describe("vetTimeoutMs", () => {
       expect(vetTimeoutMs({ MUTATE4TS_VET_TIMEOUT_MS: bad })).toBe(DEFAULT_VET_TIMEOUT_MS);
     }
     expect(vetTimeoutMs({})).toBe(280_000);
+  });
+
+  test("accepts the timer maximum and rejects anything above it", () => {
+    expect(vetTimeoutMs({ MUTATE4TS_VET_TIMEOUT_MS: "2147483647" })).toBe(MAX_TIMER_MS);
+    for (const over of ["2147483648", "3000000000"]) {
+      expect(vetTimeoutMs({ MUTATE4TS_VET_TIMEOUT_MS: over })).toBe(DEFAULT_VET_TIMEOUT_MS);
+    }
   });
 });
 
@@ -387,6 +395,24 @@ describe("vet-stop hook process", () => {
     expect(stdout).toBe("{}");
   });
 
+  test("does not time out early when the timeout exceeds the timer maximum", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vet-stop-bigtimeout-"));
+    try {
+      const script = join(dir, "short.sh");
+      await Bun.write(script, "sleep 1\n");
+      const started = Date.now();
+      const { stdout, exitCode } = await runHook('{"status":"completed"}', `sh ${script}`, {
+        MUTATE4TS_VET_TIMEOUT_MS: "3000000000",
+      });
+      expect(Date.now() - started).toBeLessThan(5_000);
+      expect(exitCode).toBe(0);
+      expect(stdout).toBe("{}");
+      expect(stdout).not.toContain("timed out");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   describe("timeout", () => {
     let dir: string | undefined;
     let marker: string | undefined;
@@ -411,7 +437,8 @@ describe("vet-stop hook process", () => {
         dir = await mkdtemp(join(tmpdir(), "vet-stop-timeout-"));
         marker = `31.${Date.now()}`;
         const script = join(dir, "slow.sh");
-        await Bun.write(script, `sleep ${marker} &\nsleep ${marker}\n`);
+        const pidFile = join(dir, "child.pid");
+        await Bun.write(script, `sleep ${marker} &\necho $! > ${pidFile}\nsleep ${marker}\n`);
 
         const started = Date.now();
         const { stdout, exitCode } = await runHook('{"status":"completed"}', `sh ${script}`, {
@@ -425,6 +452,9 @@ describe("vet-stop hook process", () => {
         expect(out.reason).toContain(`\`sh ${script}\` timed out after 500 ms and was killed.`);
         expect(out.reason).not.toContain("exit code 1");
         expect(sleeperPids(marker)).toEqual([]);
+        const childPid = Number((await Bun.file(pidFile).text()).trim());
+        expect(childPid).toBeGreaterThan(0);
+        expect(() => process.kill(childPid, 0)).toThrow(expect.objectContaining({ code: "ESRCH" }));
       },
       15_000,
     );
