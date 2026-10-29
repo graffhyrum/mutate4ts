@@ -53,7 +53,7 @@ bun src/index.ts --lines 42,43,44 src/my-module.ts
 1. Parses the source file with the TypeScript compiler API
 2. Runs the baseline test suite and records its duration
 3. For each mutation site: applies the mutation, runs tests with a timeout of `baseline × timeoutFactor`, restores the original, records `killed` / `survived` / `timeout`
-4. Prints a report and exits with code `1` if any mutations survived, `0` if all were killed
+4. Prints a report (a timed-out mutation counts as killed in the Mutation Score) and exits with `0` if every mutation was detected, `1` if any survived, `3` if any errored (the highest code wins)
 
 ## Mutation operators
 
@@ -66,11 +66,15 @@ bun src/index.ts --lines 42,43,44 src/my-module.ts
 
 ## Exit codes
 
-| Code | Meaning                                           |
-| ---- | ------------------------------------------------- |
-| `0`  | All mutations killed                              |
-| `1`  | One or more mutations survived                    |
-| `2`  | Fatal error (bad arguments, file not found, etc.) |
+| Code  | Meaning                                                                         |
+| ----- | ------------------------------------------------------------------------------- |
+| `0`   | All mutations detected (killed or timed out)                                    |
+| `1`   | One or more mutations survived                                                  |
+| `2`   | Fatal error (bad arguments, file not found, baseline failure); nothing measured |
+| `3`   | Run finished, but one or more mutations errored (score incomplete)              |
+| `130` | Interrupted                                                                     |
+
+See [ADR 0001](docs/adr/0001-mutation-exit-codes.md).
 
 ## Development
 
